@@ -17,6 +17,11 @@ The `WHITEBOARD.md` file serves as communication between Claude instances, maint
 uv tool install .
 ```
 
+### Recommended
+
+- Install [Beans](https://www.beans.cm/) for better tracking of tasks and credit usage
+- Write a good `CLAUDE.md` file in your project to provide context and instructions
+
 ## Usage
 
 ```bash
