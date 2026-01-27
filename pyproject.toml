@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "autoclaude"
+version = "0.1.0"
+description = "Automatically implement user stories with Claude"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+autoclaude = "autoclaude:main"
+
+[tool.uv]
+package = true
