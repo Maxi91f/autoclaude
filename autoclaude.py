@@ -30,8 +30,8 @@ from prompts.registry import (
 
 
 def get_project_root() -> Path:
-    """Get the project root directory."""
-    return Path(__file__).parent.parent
+    """Get the project root directory (current working directory)."""
+    return Path.cwd()
 
 
 def get_whiteboard_path() -> Path:
