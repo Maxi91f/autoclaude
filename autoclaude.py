@@ -29,14 +29,26 @@ from prompts.registry import (
 )
 
 
+def get_git_root() -> Path | None:
+    """Get the root directory of the git repository, or None if not in a git repo."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return Path(result.stdout.strip())
+    return None
+
+
 def get_project_root() -> Path:
-    """Get the project root directory (current working directory)."""
-    return Path.cwd()
+    """Get the project root directory (git root or current working directory)."""
+    return get_git_root() or Path.cwd()
 
 
 def get_whiteboard_path() -> Path:
-    """Get the path to WHITEBOARD.md in the current project."""
-    return Path.cwd() / "WHITEBOARD.md"
+    """Get the path to WHITEBOARD.md in the project root."""
+    return get_project_root() / "WHITEBOARD.md"
 
 
 def query_beans() -> list[dict]:
@@ -511,26 +523,31 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Autoclaude - Automatically implement tasks with Claude",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
         epilog="""
 Examples:
-  autoclaude list          # Show all tasks with 'autoclaude' tag
-  autoclaude run           # Implement all tasks with Claude (loop)
-  autoclaude run --ask     # Ask for confirmation before running
-  autoclaude run -n 3      # Run max 3 iterations
-  autoclaude run --print   # Just print the prompt
-  autoclaude run -p deploy # Run deploy prompt once
-  autoclaude run -p ui     # Run UI review prompt once
-  autoclaude run -p cleanup # Run cleanup prompt once
+  autoclaude list            # Show all tasks with 'autoclaude' tag
+  autoclaude run             # Implement all tasks with Claude (loop)
+  autoclaude run --ask       # Ask for confirmation before running
+  autoclaude run -n 3        # Run max 3 iterations
+  autoclaude run --print-only # Just print the prompt
+  autoclaude run -p deploy   # Run deploy prompt once
+  autoclaude run -p ui       # Run UI review prompt once
+  autoclaude run -p cleanup  # Run cleanup prompt once
         """,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # list command
-    subparsers.add_parser("list", help="List all tasks with 'autoclaude' tag")
+    subparsers.add_parser(
+        "list", help="List all tasks with 'autoclaude' tag", allow_abbrev=False
+    )
 
     # run command
-    run_parser = subparsers.add_parser("run", help="Run Claude to implement tasks")
+    run_parser = subparsers.add_parser(
+        "run", help="Run Claude to implement tasks", allow_abbrev=False
+    )
     run_parser.add_argument(
         "--ask",
         action="store_true",
