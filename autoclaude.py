@@ -35,8 +35,8 @@ def get_project_root() -> Path:
 
 
 def get_whiteboard_path() -> Path:
-    """Get the path to WHITEBOARD.md."""
-    return Path(__file__).parent / "WHITEBOARD.md"
+    """Get the path to WHITEBOARD.md in the current project."""
+    return Path.cwd() / "WHITEBOARD.md"
 
 
 def query_beans() -> list[dict]:
