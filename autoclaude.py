@@ -13,6 +13,7 @@ Runs in a loop until:
 import argparse
 import json
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -272,6 +273,21 @@ def cmd_run(args: argparse.Namespace) -> int:
     no_progress_count = 0
     max_no_progress = 5
     max_iterations = args.max_iterations
+    terminating = False
+    current_proc = None
+
+    def handle_sigint(_signum, _frame):
+        nonlocal terminating
+        if terminating:
+            # Second Ctrl+C - kill child process and exit immediately
+            if current_proc and current_proc.poll() is None:
+                current_proc.terminate()
+            print("\n\n⏹ Force quit")
+            sys.exit(130)
+        terminating = True
+        print("\n\n⏹ Finishing current iteration... (Ctrl+C again to force quit)")
+
+    signal.signal(signal.SIGINT, handle_sigint)
 
     while True:
         # Check allowed hours before each iteration
@@ -286,12 +302,13 @@ def cmd_run(args: argparse.Namespace) -> int:
         iteration += 1
         done, pending = count_beans()
 
-        print(f"\n{'=' * 60}")
+        # Cyan header
+        print(f"\n\033[1;36m{'=' * 60}")
         iter_info = f"ITERATION {iteration}"
         if max_iterations > 0:
             iter_info += f"/{max_iterations}"
         print(f"{iter_info} | Done: {done} | Pending: {pending}")
-        print("=" * 60)
+        print(f"{'=' * 60}\033[0m")
 
         if pending == 0:
             print("\n🎉 All stories are completed!")
@@ -304,7 +321,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         # Build context and determine which prompt to run
         ctx = build_context(iteration, pending, done)
         prompt_obj = get_prompt_for_context(ctx)
-        prefix = f"I{iteration:02d}> "
+        # Cyan bold for prefix to make it stand out
+        # Use lambda so terminating status is evaluated at print time
+        def get_prefix():
+            term_marker = " \033[1;31m(Terminating...)\033[1;32m" if terminating else ""
+            timestamp = datetime.now().strftime("%H:%M")
+            return f"\033[1;32m[{timestamp}] I{iteration:02d} ({prompt_obj.emoji}){term_marker}>\033[0m "
 
         current_prompt = prompt_obj.build(whiteboard_path)
         print(f"\n{prompt_obj.emoji} {prompt_obj.description}\n")
@@ -327,7 +349,9 @@ def cmd_run(args: argparse.Namespace) -> int:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                start_new_session=True,  # Don't forward Ctrl+C to claude
             )
+            current_proc = proc
 
             # Send prompt and close stdin
             proc.stdin.write(current_prompt.encode("utf-8"))
@@ -387,20 +411,20 @@ def cmd_run(args: argparse.Namespace) -> int:
                                         if len(input_str) > 200:
                                             input_str = input_str[:200] + "..."
                                         print(
-                                            f"\n{prefix}🔧 {tool}: {input_str}",
+                                            f"\n{get_prefix()}🔧 {tool}: {input_str}",
                                             flush=True,
                                         )
                                     else:
-                                        print(f"\n{prefix}🔧 {tool}", flush=True)
+                                        print(f"\n{get_prefix()}🔧 {tool}", flush=True)
 
                         elif event_type == "assistant":
                             # Tool use events come as assistant messages
                             subtype = event.get("subtype", "")
                             if subtype == "tool_use":
                                 tool = event.get("name", "unknown")
-                                print(f"\n{prefix}🔧 Tool: {tool}", flush=True)
+                                print(f"\n{get_prefix()}🔧 Tool: {tool}", flush=True)
                             elif subtype == "tool_result":
-                                print(f"{prefix}✓ Tool done", flush=True)
+                                print(f"\n{get_prefix()}✓ Tool done", flush=True)
 
                         elif event_type == "user":
                             # Tool result - show completion
@@ -409,7 +433,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                             if content and isinstance(content, list):
                                 for item in content:
                                     if item.get("type") == "tool_result":
-                                        print(f"{prefix}✓ Tool done", flush=True)
+                                        print(f"\n{get_prefix()}✓ Tool done", flush=True)
                                         break
 
                         elif event_type == "result":
@@ -417,7 +441,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                             if result_text:
                                 last_result = result_text
                                 print(
-                                    f"\n{prefix}📋 Result: {result_text[:300]}...",
+                                    f"\n{get_prefix()}📋 Result: {result_text[:300]}...",
                                     flush=True,
                                 )
 
@@ -444,7 +468,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                     continue
 
         except Exception as e:
-            print(f"\n{prefix}Error: {e}")
+            print(f"\n{get_prefix()}Error: {e}")
             no_progress_count += 1
             continue
 
@@ -472,6 +496,11 @@ def cmd_run(args: argparse.Namespace) -> int:
 
         if new_done == done and new_pending == pending:
             print(f"\n⚠ No progress detected ({no_progress_count}/{max_no_progress})")
+
+        # Check if user requested graceful termination
+        if terminating:
+            print("\n⏹ Terminated by user after iteration completed.")
+            return 0
 
 
 def cmd_list(_args: argparse.Namespace) -> int:
