@@ -10,9 +10,9 @@ from .ui import UIPrompt
 
 # All available prompts (order matters for priority when multiple match)
 ALL_PROMPTS: list[type[BasePrompt]] = [
-    CleanupPrompt,  # Highest priority special prompt
-    DeployPrompt,
+    DeployPrompt,  # First in final round
     UIPrompt,
+    CleanupPrompt,
     TaskPrompt,  # Fallback
 ]
 
@@ -21,6 +21,9 @@ _instances: dict[str, BasePrompt] = {}
 
 # Track last run iteration per prompt
 _last_run: dict[str, int] = {}
+
+# Track which special prompts ran in the final round (when no tasks remain)
+_final_round_ran: set[str] = set()
 
 
 def _ensure_instances() -> None:
@@ -72,14 +75,23 @@ def get_prompt_for_context(ctx: IterationContext) -> BasePrompt:
     raise ValueError(f"No prompt wants to run at iteration {ctx.iteration}")
 
 
-def record_run(prompt_name: str, iteration: int) -> None:
+def record_run(prompt_name: str, iteration: int, beans_pending: int) -> None:
     """Record that a prompt ran at a given iteration.
 
     Args:
         prompt_name: The prompt that ran.
         iteration: The iteration number.
+        beans_pending: Number of pending beans after the run.
     """
     _last_run[prompt_name] = iteration
+    # Track final round runs (when no tasks remain)
+    if beans_pending == 0:
+        _final_round_ran.add(prompt_name)
+
+
+def reset_final_round() -> None:
+    """Reset the final round tracking. Call when new tasks appear."""
+    _final_round_ran.clear()
 
 
 def get_last_run() -> dict[str, int]:
@@ -104,13 +116,39 @@ def build_context(
     Returns:
         An IterationContext with all the info prompts need.
     """
+    # Reset final round tracking when tasks appear
+    if beans_pending > 0:
+        reset_final_round()
+
     return IterationContext(
         iteration=iteration,
         cycle_position=iteration % 7,
         beans_pending=beans_pending,
         beans_completed=beans_completed,
         last_run=get_last_run(),
+        final_round_ran=_final_round_ran.copy(),
     )
+
+
+def should_terminate(ctx: IterationContext) -> bool:
+    """Check if the system should terminate.
+
+    Returns True only when there are no pending tasks AND all special
+    prompts have already run in the final round.
+
+    Args:
+        ctx: The current iteration context.
+
+    Returns:
+        True if no more work to do.
+    """
+    if ctx.beans_pending > 0:
+        return False
+
+    # Check if all special prompts have run in the final round
+    _ensure_instances()
+    special_prompts = [name for name in _instances.keys() if name != "task"]
+    return all(name in ctx.final_round_ran for name in special_prompts)
 
 
 def get_all_prompts() -> list[BasePrompt]:

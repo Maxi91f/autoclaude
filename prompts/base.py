@@ -18,6 +18,8 @@ class IterationContext:
         beans_pending: Number of beans with status todo/in-progress/draft.
         beans_completed: Number of beans with status completed/scrapped.
         last_run: Dict mapping prompt name to last iteration it ran.
+        final_round_ran: Set of prompt names that already ran in the current
+            final round (when beans_pending == 0). Reset when tasks appear.
     """
 
     iteration: int
@@ -25,6 +27,7 @@ class IterationContext:
     beans_pending: int
     beans_completed: int
     last_run: dict[str, int] = field(default_factory=dict)
+    final_round_ran: set[str] = field(default_factory=set)
 
     def iterations_since(self, prompt_name: str) -> int | None:
         """Get iterations since a prompt last ran, or None if never ran."""

@@ -29,6 +29,7 @@ from prompts.registry import (
     get_prompt_for_context,
     get_prompt_names,
     record_run,
+    should_terminate,
 )
 
 
@@ -401,16 +402,18 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"{iter_info} | Done: {done} | Pending: {pending}")
         print(f"{'=' * 60}\033[0m")
 
-        if pending == 0:
-            print("\n🎉 All stories are completed!")
-            return 0
-
         if max_iterations > 0 and iteration > max_iterations:
             print(f"\n🛑 Reached max iterations ({max_iterations}). Stopping.")
             return 0
 
         # Build context and determine which prompt to run
         ctx = build_context(iteration, pending, done)
+
+        # Check if we should terminate (no tasks and all special prompts ran)
+        if should_terminate(ctx):
+            print("\n🎉 All stories are completed!")
+            return 0
+
         prompt_obj = get_prompt_for_context(ctx)
         # Cyan bold for prefix to make it stand out
         # Use lambda so terminating status is evaluated at print time
@@ -423,7 +426,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"\n{prompt_obj.emoji} {prompt_obj.description}\n")
 
         # Record that this prompt ran
-        record_run(prompt_obj.name, iteration)
+        record_run(prompt_obj.name, iteration, pending)
 
         try:
             returncode, last_result, stderr_output = run_claude(

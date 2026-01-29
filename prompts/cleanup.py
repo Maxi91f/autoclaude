@@ -19,6 +19,9 @@ class CleanupPrompt(BasePrompt):
         return "Running cleanup/verification iteration..."
 
     def should_run(self, ctx: IterationContext) -> bool:
+        # Run in final round (no tasks left) if not already ran
+        if ctx.beans_pending == 0 and self.name not in ctx.final_round_ran:
+            return True
         # Run at cycle position 0 (every 7th iteration)
         if ctx.cycle_position == 0 and ctx.iteration > 0:
             return True

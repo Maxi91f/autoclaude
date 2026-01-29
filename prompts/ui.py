@@ -19,5 +19,8 @@ class UIPrompt(BasePrompt):
         return "Running UI review iteration..."
 
     def should_run(self, ctx: IterationContext) -> bool:
+        # Run in final round (no tasks left) if not already ran
+        if ctx.beans_pending == 0 and self.name not in ctx.final_round_ran:
+            return True
         # Run at cycle position 6
         return ctx.cycle_position == 6
