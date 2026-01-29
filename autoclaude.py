@@ -84,19 +84,15 @@ def count_beans() -> tuple[int, int]:
 
 
 def is_credit_error(output: str) -> bool:
-    """Check if the error is related to credits/billing."""
-    credit_indicators = [
-        "credit",
-        "billing",
-        "quota",
-        "rate limit",
-        "insufficient",
-        "payment",
-        "hit your limit",
-        "limit exceeded",
-    ]
-    output_lower = output.lower()
-    return any(indicator in output_lower for indicator in credit_indicators)
+    """Check if the error is related to credits/billing.
+
+    Uses specific patterns to avoid false positives when Claude
+    mentions words like 'limit' in normal responses.
+    """
+    # Look for the specific rate limit message format from Claude CLI
+    # Example: "You've hit your limit · resets 5am (America/Asuncion)"
+    # Must have both "hit your limit" AND the reset time format
+    return bool(re.search(r"hit your limit .* resets \d{1,2}(am|pm)", output, re.IGNORECASE))
 
 
 def parse_reset_time(output: str) -> datetime | None:
@@ -429,11 +425,13 @@ def cmd_run(args: argparse.Namespace) -> int:
                         pass
 
             returncode = proc.wait()
+            stderr_output = proc.stderr.read().decode("utf-8", errors="replace")
             print()  # Final newline
 
-            # Check for credit/rate limit errors - wait and retry
-            if is_credit_error(last_result):
-                reset_time = parse_reset_time(last_result)
+            # Check for credit/rate limit errors in result or stderr
+            error_text = last_result + "\n" + stderr_output
+            if is_credit_error(error_text):
+                reset_time = parse_reset_time(error_text)
                 if reset_time:
                     wait_for_reset(reset_time)
                     no_progress_count = 0  # Reset counter after waiting
