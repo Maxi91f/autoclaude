@@ -21,9 +21,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from typing import Callable
+
 from prompts.registry import (
     build_context,
-    build_prompt,
+    get_prompt,
     get_prompt_for_context,
     get_prompt_names,
     record_run,
@@ -178,63 +180,152 @@ def wait_for_allowed_hours(start_hour: int, end_hour: int) -> None:
     print()  # Clear the waiting line
 
 
-def run_single_prompt(prompt: str, description: str) -> int:
+def run_claude(
+    prompt: str,
+    prefix_fn: Callable[[], str] | None = None,
+    start_new_session: bool = False,
+) -> tuple[int, str, str]:
+    """Run Claude with a prompt and stream output.
+
+    Args:
+        prompt: The prompt to send to Claude
+        prefix_fn: Optional callable that returns a prefix string for output lines
+        start_new_session: If True, don't forward Ctrl+C to claude subprocess
+
+    Returns:
+        Tuple of (return_code, last_result, stderr_output)
+    """
+    prefix = prefix_fn or (lambda: "")
+
+    proc = subprocess.Popen(
+        [
+            "claude",
+            "-p",
+            "--dangerously-skip-permissions",
+            "--output-format",
+            "stream-json",
+            "--include-partial-messages",
+            "--verbose",
+        ],
+        cwd=get_project_root(),
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=start_new_session,
+    )
+
+    proc.stdin.write(prompt.encode("utf-8"))
+    proc.stdin.close()
+
+    # Process streaming JSON output using read1() for true unbuffered reading
+    buffer = ""
+    last_result = ""
+    while True:
+        # read1() reads available bytes without waiting for EOF
+        chunk = proc.stdout.read1(4096).decode("utf-8", errors="replace")
+        if not chunk:
+            if proc.poll() is not None:
+                break
+            continue
+
+        buffer += chunk
+        # Process complete lines
+        while "\n" in buffer:
+            line, buffer = buffer.split("\n", 1)
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+                event_type = event.get("type", "")
+
+                if event_type == "stream_event":
+                    inner = event.get("event", {})
+                    inner_type = inner.get("type", "")
+
+                    if inner_type == "content_block_delta":
+                        delta = inner.get("delta", {})
+                        delta_type = delta.get("type", "")
+                        if delta_type == "text_delta":
+                            text = delta.get("text", "")
+                            print(text, end="", flush=True)
+                        elif delta_type == "thinking_delta":
+                            text = delta.get("thinking", "")
+                            print(f"💭 {text}", end="", flush=True)
+                        elif delta_type == "input_json_delta":
+                            # Tool input streaming - show partial input
+                            partial = delta.get("partial_json", "")
+                            if partial:
+                                print(partial, end="", flush=True)
+                    elif inner_type == "content_block_start":
+                        # Check for tool use start
+                        block = inner.get("content_block", {})
+                        if block.get("type") == "tool_use":
+                            tool = block.get("name", "unknown")
+                            tool_input = block.get("input", {})
+                            # Format input for display
+                            if tool_input:
+                                input_str = json.dumps(
+                                    tool_input, ensure_ascii=False
+                                )
+                                if len(input_str) > 200:
+                                    input_str = input_str[:200] + "..."
+                                print(
+                                    f"\n{prefix()}🔧 {tool}: {input_str}",
+                                    flush=True,
+                                )
+                            else:
+                                print(f"\n{prefix()}🔧 {tool}", flush=True)
+
+                elif event_type == "assistant":
+                    # Tool use events come as assistant messages
+                    subtype = event.get("subtype", "")
+                    if subtype == "tool_use":
+                        tool = event.get("name", "unknown")
+                        print(f"\n{prefix()}🔧 Tool: {tool}", flush=True)
+                    elif subtype == "tool_result":
+                        print(f"\n{prefix()}✓ Tool done", flush=True)
+
+                elif event_type == "user":
+                    # Tool result - show completion
+                    msg = event.get("message", {})
+                    content = msg.get("content", [])
+                    if content and isinstance(content, list):
+                        for item in content:
+                            if item.get("type") == "tool_result":
+                                print(f"\n{prefix()}✓ Tool done", flush=True)
+                                break
+
+                elif event_type == "result":
+                    result_text = event.get("result", "")
+                    if result_text:
+                        last_result = result_text
+                        print(
+                            f"\n{prefix()}📋 Result: {result_text[:300]}...",
+                            flush=True,
+                        )
+
+            except json.JSONDecodeError:
+                pass
+
+    returncode = proc.wait()
+    stderr_output = proc.stderr.read().decode("utf-8", errors="replace")
+    print()  # Final newline
+
+    return returncode, last_result, stderr_output
+
+
+def run_single_prompt(prompt: str, description: str, emoji: str) -> int:
     """Run a single prompt and return exit code."""
     print(f"\n{description}\n")
 
+    def get_prefix():
+        timestamp = datetime.now().strftime("%H:%M")
+        return f"\033[1;32m[{timestamp}] UL ({emoji})>\033[0m "
+
     try:
-        proc = subprocess.Popen(
-            [
-                "claude",
-                "-p",
-                "--dangerously-skip-permissions",
-                "--output-format",
-                "stream-json",
-                "--include-partial-messages",
-                "--verbose",
-            ],
-            cwd=get_project_root(),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-
-        proc.stdin.write(prompt.encode("utf-8"))
-        proc.stdin.close()
-
-        # Process streaming output
-        import json
-
-        buffer = ""
-        while True:
-            chunk = proc.stdout.read1(4096).decode("utf-8", errors="replace")
-            if not chunk:
-                if proc.poll() is not None:
-                    break
-                continue
-
-            buffer += chunk
-            while "\n" in buffer:
-                line, buffer = buffer.split("\n", 1)
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    event = json.loads(line)
-                    event_type = event.get("type", "")
-                    if event_type == "stream_event":
-                        inner = event.get("event", {})
-                        inner_type = inner.get("type", "")
-                        if inner_type == "content_block_delta":
-                            delta = inner.get("delta", {})
-                            if delta.get("type") == "text_delta":
-                                print(delta.get("text", ""), end="", flush=True)
-                except json.JSONDecodeError:
-                    pass
-
-        print()
-        return proc.wait()
-
+        returncode, _, _ = run_claude(prompt, prefix_fn=get_prefix)
+        return returncode
     except Exception as e:
         print(f"\nError: {e}")
         return 1
@@ -246,7 +337,8 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     if args.print_only:
         prompt_name = args.prompt or "task"
-        prompt_content, _ = build_prompt(prompt_name, whiteboard_path)
+        prompt_obj = get_prompt(prompt_name)
+        prompt_content = prompt_obj.build(whiteboard_path)
         print(f"Prompt that would be sent to Claude ({prompt_name}):")
         print("-" * 40)
         print(prompt_content)
@@ -255,8 +347,10 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     # Run a specific prompt once if requested
     if args.prompt:
-        prompt_content, description = build_prompt(args.prompt, whiteboard_path)
-        return run_single_prompt(prompt_content, description)
+        prompt_obj = get_prompt(args.prompt)
+        prompt_content = prompt_obj.build(whiteboard_path)
+        description = f"{prompt_obj.emoji} {prompt_obj.description}"
+        return run_single_prompt(prompt_content, description, prompt_obj.emoji)
 
     # Confirm before running (only if --ask flag is provided)
     if args.ask:
@@ -274,14 +368,11 @@ def cmd_run(args: argparse.Namespace) -> int:
     max_no_progress = 5
     max_iterations = args.max_iterations
     terminating = False
-    current_proc = None
 
     def handle_sigint(_signum, _frame):
         nonlocal terminating
         if terminating:
-            # Second Ctrl+C - kill child process and exit immediately
-            if current_proc and current_proc.poll() is None:
-                current_proc.terminate()
+            # Second Ctrl+C - exit immediately
             print("\n\n⏹ Force quit")
             sys.exit(130)
         terminating = True
@@ -335,122 +426,11 @@ def cmd_run(args: argparse.Namespace) -> int:
         record_run(prompt_obj.name, iteration)
 
         try:
-            proc = subprocess.Popen(
-                [
-                    "claude",
-                    "-p",
-                    "--dangerously-skip-permissions",
-                    "--output-format",
-                    "stream-json",
-                    "--include-partial-messages",
-                    "--verbose",
-                ],
-                cwd=get_project_root(),
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                start_new_session=True,  # Don't forward Ctrl+C to claude
+            returncode, last_result, stderr_output = run_claude(
+                current_prompt,
+                prefix_fn=get_prefix,
+                start_new_session=True,
             )
-            current_proc = proc
-
-            # Send prompt and close stdin
-            proc.stdin.write(current_prompt.encode("utf-8"))
-            proc.stdin.close()
-
-            # Process streaming JSON output using read1() for true unbuffered reading
-            buffer = ""
-            last_result = ""
-            while True:
-                # read1() reads available bytes without waiting for EOF
-                chunk = proc.stdout.read1(4096).decode("utf-8", errors="replace")
-                if not chunk:
-                    if proc.poll() is not None:
-                        break
-                    continue
-
-                buffer += chunk
-                # Process complete lines
-                while "\n" in buffer:
-                    line, buffer = buffer.split("\n", 1)
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        event = json.loads(line)
-                        event_type = event.get("type", "")
-
-                        if event_type == "stream_event":
-                            inner = event.get("event", {})
-                            inner_type = inner.get("type", "")
-
-                            if inner_type == "content_block_delta":
-                                delta = inner.get("delta", {})
-                                delta_type = delta.get("type", "")
-                                if delta_type == "text_delta":
-                                    text = delta.get("text", "")
-                                    print(text, end="", flush=True)
-                                elif delta_type == "thinking_delta":
-                                    text = delta.get("thinking", "")
-                                    print(f"💭 {text}", end="", flush=True)
-                                elif delta_type == "input_json_delta":
-                                    # Tool input streaming - show partial input
-                                    partial = delta.get("partial_json", "")
-                                    if partial:
-                                        print(partial, end="", flush=True)
-                            elif inner_type == "content_block_start":
-                                # Check for tool use start
-                                block = inner.get("content_block", {})
-                                if block.get("type") == "tool_use":
-                                    tool = block.get("name", "unknown")
-                                    tool_input = block.get("input", {})
-                                    # Format input for display
-                                    if tool_input:
-                                        input_str = json.dumps(
-                                            tool_input, ensure_ascii=False
-                                        )
-                                        if len(input_str) > 200:
-                                            input_str = input_str[:200] + "..."
-                                        print(
-                                            f"\n{get_prefix()}🔧 {tool}: {input_str}",
-                                            flush=True,
-                                        )
-                                    else:
-                                        print(f"\n{get_prefix()}🔧 {tool}", flush=True)
-
-                        elif event_type == "assistant":
-                            # Tool use events come as assistant messages
-                            subtype = event.get("subtype", "")
-                            if subtype == "tool_use":
-                                tool = event.get("name", "unknown")
-                                print(f"\n{get_prefix()}🔧 Tool: {tool}", flush=True)
-                            elif subtype == "tool_result":
-                                print(f"\n{get_prefix()}✓ Tool done", flush=True)
-
-                        elif event_type == "user":
-                            # Tool result - show completion
-                            msg = event.get("message", {})
-                            content = msg.get("content", [])
-                            if content and isinstance(content, list):
-                                for item in content:
-                                    if item.get("type") == "tool_result":
-                                        print(f"\n{get_prefix()}✓ Tool done", flush=True)
-                                        break
-
-                        elif event_type == "result":
-                            result_text = event.get("result", "")
-                            if result_text:
-                                last_result = result_text
-                                print(
-                                    f"\n{get_prefix()}📋 Result: {result_text[:300]}...",
-                                    flush=True,
-                                )
-
-                    except json.JSONDecodeError:
-                        pass
-
-            returncode = proc.wait()
-            stderr_output = proc.stderr.read().decode("utf-8", errors="replace")
-            print()  # Final newline
 
             # Check for credit/rate limit errors in result or stderr
             error_text = last_result + "\n" + stderr_output
