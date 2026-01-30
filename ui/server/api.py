@@ -1,10 +1,12 @@
 """REST API endpoints for the UI."""
 
 import subprocess
+from typing import Any
 
 from fastapi import APIRouter
 
 from .models import (
+    PerformersResponse,
     SimpleResponse,
     StartRequest,
     StartResponse,
@@ -105,3 +107,27 @@ async def resume_process() -> SimpleResponse:
     pm = get_process_manager()
     success, error = await pm.resume()
     return SimpleResponse(success=success, error=error)
+
+
+@router.get("/performers", response_model=PerformersResponse)
+async def list_performers() -> PerformersResponse:
+    """List available performers."""
+    try:
+        from autoclaude.performers.registry import get_all_performers
+
+        performers = []
+        for p in get_all_performers():
+            performers.append({
+                "name": p.name,
+                "emoji": p.emoji,
+                "description": p.description,
+            })
+        return PerformersResponse(performers=performers)
+    except ImportError:
+        # Fallback if autoclaude module not available
+        return PerformersResponse(performers=[
+            {"name": "task", "emoji": "📋", "description": "Task performer"},
+            {"name": "ui", "emoji": "🎨", "description": "UI performer"},
+            {"name": "cleanup", "emoji": "🧹", "description": "Cleanup performer"},
+            {"name": "deploy", "emoji": "🚀", "description": "Deploy performer"},
+        ])

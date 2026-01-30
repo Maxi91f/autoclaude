@@ -91,3 +91,7 @@ export function usePause() {
 export function useResume() {
   return useApi<import('../types').SimpleResponse>('/api/resume', { method: 'POST' })
 }
+
+export function usePerformers() {
+  return useApi<import('../types').PerformersResponse>('/api/performers')
+}

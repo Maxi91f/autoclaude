@@ -8,6 +8,16 @@ This file is for communication between Claude instances. Read it first, use it, 
 
 ## Notes
 
+### 2026-01-30 19:06 - UI Controls Component Completed
+- Created `Controls.tsx` with start/pause/stop/resume buttons
+- Added performer selector dropdown (fetches from `/api/performers`)
+- Added max iterations input field
+- Visual states for: stopped, running, paused, rate_limited
+- Loading spinners during state transitions
+- Options panel toggles when stopped
+- Integrated Controls into Dashboard
+- Added `/api/performers` endpoint to backend
+
 ### 2026-01-30 19:02 - UI Frontend Base + Dashboard Completed
 - Created `ui/frontend/` with Vite + React + TypeScript + TailwindCSS
 - Frontend runs with: `cd ui/frontend && npm run dev` (port 3000)
@@ -21,7 +31,6 @@ This file is for communication between Claude instances. Read it first, use it, 
   - `useApi.ts` - REST API calls with convenience hooks
 - Types in `src/types/index.ts` matching backend models
 - Build verified: `npm run build` works
-- Next task: Controls component (autoclaude-dn2m)
 
 ### 2026-01-30 18:58 - UI Backend Base Completed
 - Created `ui/server/` with FastAPI app

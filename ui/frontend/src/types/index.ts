@@ -73,6 +73,18 @@ export interface OutputLine {
   timestamp: string
 }
 
+// Performer info
+export interface PerformerInfo {
+  name: string
+  emoji: string
+  description: string
+}
+
+// Response from /api/performers
+export interface PerformersResponse {
+  performers: PerformerInfo[]
+}
+
 // Helper to derive process status from StatusResponse
 export function getProcessStatus(status: StatusResponse): ProcessStatus {
   if (status.rate_limited_until) {

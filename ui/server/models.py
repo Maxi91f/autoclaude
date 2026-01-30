@@ -108,3 +108,21 @@ class WSClientMessage(BaseModel):
     model_config = ConfigDict(strict=False)
 
     action: str
+
+
+class PerformerInfo(BaseModel):
+    """Information about a performer."""
+
+    model_config = ConfigDict(strict=False)
+
+    name: str
+    emoji: str
+    description: str
+
+
+class PerformersResponse(BaseModel):
+    """Response for /api/performers endpoint."""
+
+    model_config = ConfigDict(strict=False)
+
+    performers: list[PerformerInfo]

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useStatus } from '../hooks/useApi'
 import { useWebSocket } from '../hooks/useWebSocket'
 import StatusCards from './StatusCards'
+import Controls from './Controls'
 import type { StatusResponse, WSMessage } from '../types'
 
 export default function Dashboard() {
@@ -66,6 +67,12 @@ export default function Dashboard() {
       </div>
 
       <StatusCards status={status} loading={loading} connected={connected} />
+
+      {/* Controls */}
+      <Controls
+        status={status}
+        onStatusChange={() => fetchStatus().then((data) => data && setStatus(data))}
+      />
 
       {/* Started at info */}
       {status?.started_at && (
