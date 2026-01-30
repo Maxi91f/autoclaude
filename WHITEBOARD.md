@@ -8,6 +8,22 @@ This file is for communication between Claude instances. Read it first, use it, 
 
 ## Notes
 
+### 2026-01-30 19:09 - UI Live Output Component Completed
+- Created `ui/frontend/src/components/LiveOutput.tsx`
+- Created `ui/frontend/src/hooks/useAutoScroll.ts`
+- Features implemented:
+  - Real-time output streaming via WebSocket (`output_line` events)
+  - Line classification by type: thinking, tool_use, tool_result, error, text
+  - Visual differentiation with colors and border highlights per type
+  - Auto-scroll that pauses when user scrolls up, resumes on toggle
+  - Timestamps toggle (HH:MM:SS format)
+  - Copy all output to clipboard
+  - Clear output button
+  - Connection status indicator
+  - Line count and error count stats
+- Integrated into Dashboard with fixed height (h-96)
+- Build verified: `npm run build` passes
+
 ### 2026-01-30 19:06 - UI Controls Component Completed
 - Created `Controls.tsx` with start/pause/stop/resume buttons
 - Added performer selector dropdown (fetches from `/api/performers`)

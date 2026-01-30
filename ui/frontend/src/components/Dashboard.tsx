@@ -3,6 +3,7 @@ import { useStatus } from '../hooks/useApi'
 import { useWebSocket } from '../hooks/useWebSocket'
 import StatusCards from './StatusCards'
 import Controls from './Controls'
+import LiveOutput from './LiveOutput'
 import type { StatusResponse, WSMessage } from '../types'
 
 export default function Dashboard() {
@@ -80,6 +81,11 @@ export default function Dashboard() {
           Started at: {new Date(status.started_at).toLocaleString()}
         </div>
       )}
+
+      {/* Live Output */}
+      <div className="h-96">
+        <LiveOutput maxLines={1000} />
+      </div>
     </div>
   )
 }
