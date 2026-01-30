@@ -14,6 +14,8 @@ from .models import (
     StopRequest,
     TaskInfo,
     TasksResponse,
+    WhiteboardResponse,
+    WhiteboardUpdateRequest,
 )
 from .process_manager import get_process_manager
 from .websocket import create_output_handler, get_connection_manager
@@ -169,3 +171,44 @@ async def list_performers() -> PerformersResponse:
             {"name": "cleanup", "emoji": "🧹", "description": "Cleanup performer"},
             {"name": "deploy", "emoji": "🚀", "description": "Deploy performer"},
         ])
+
+
+def _get_whiteboard_path() -> str:
+    """Get the path to the whiteboard file."""
+    import os
+    return os.path.join(os.getcwd(), "WHITEBOARD.md")
+
+
+@router.get("/whiteboard", response_model=WhiteboardResponse)
+async def get_whiteboard() -> WhiteboardResponse:
+    """Get the whiteboard content."""
+    from datetime import datetime
+    import os
+
+    whiteboard_path = _get_whiteboard_path()
+
+    try:
+        with open(whiteboard_path, "r") as f:
+            content = f.read()
+
+        stat = os.stat(whiteboard_path)
+        last_modified = datetime.fromtimestamp(stat.st_mtime)
+
+        return WhiteboardResponse(content=content, last_modified=last_modified)
+    except FileNotFoundError:
+        return WhiteboardResponse(content="", last_modified=None)
+    except Exception:
+        return WhiteboardResponse(content="", last_modified=None)
+
+
+@router.post("/whiteboard", response_model=SimpleResponse)
+async def update_whiteboard(request: WhiteboardUpdateRequest) -> SimpleResponse:
+    """Update the whiteboard content."""
+    whiteboard_path = _get_whiteboard_path()
+
+    try:
+        with open(whiteboard_path, "w") as f:
+            f.write(request.content)
+        return SimpleResponse(success=True)
+    except Exception as e:
+        return SimpleResponse(success=False, error=str(e))

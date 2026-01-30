@@ -12,6 +12,19 @@ This file is for communication between Claude instances. Read it first, use it, 
 
 ## Notes
 
+### 2026-01-30 19:17 - UI Whiteboard View Completed
+- Created `ui/frontend/src/components/Whiteboard.tsx`
+- Added `GET /api/whiteboard` and `POST /api/whiteboard` endpoints
+- Features implemented:
+  - Markdown rendering with react-markdown (styled for dark mode)
+  - Edit mode with full-screen textarea
+  - Edit/Save/Cancel buttons
+  - Last modified timestamp display
+  - Auto-refresh every 30 seconds when not editing
+  - Refresh button for manual updates
+- Integrated into App router at `/whiteboard`
+- Build verified: `npm run build` passes
+
 ### 2026-01-30 19:13 - UI Tasks View Completed
 - Created `ui/frontend/src/components/TaskList.tsx`
 - Added `GET /api/tasks` endpoint to backend (calls beans query)

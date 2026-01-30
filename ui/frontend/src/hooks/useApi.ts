@@ -99,3 +99,14 @@ export function usePerformers() {
 export function useTasks() {
   return useApi<import('../types').TasksResponse>('/api/tasks')
 }
+
+export function useWhiteboard() {
+  return useApi<import('../types').WhiteboardResponse>('/api/whiteboard')
+}
+
+export function useUpdateWhiteboard() {
+  return useApi<import('../types').SimpleResponse, import('../types').WhiteboardUpdateRequest>(
+    '/api/whiteboard',
+    { method: 'POST' }
+  )
+}

@@ -109,6 +109,17 @@ export interface TasksResponse {
   tasks: TaskInfo[]
 }
 
+// Response from GET /api/whiteboard
+export interface WhiteboardResponse {
+  content: string
+  last_modified: string | null
+}
+
+// Request body for POST /api/whiteboard
+export interface WhiteboardUpdateRequest {
+  content: string
+}
+
 // Helper to derive process status from StatusResponse
 export function getProcessStatus(status: StatusResponse): ProcessStatus {
   if (status.rate_limited_until) {

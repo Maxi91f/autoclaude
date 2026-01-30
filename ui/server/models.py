@@ -176,3 +176,20 @@ class TasksResponse(BaseModel):
     model_config = ConfigDict(strict=False)
 
     tasks: list[TaskInfo]
+
+
+class WhiteboardResponse(BaseModel):
+    """Response for GET /api/whiteboard endpoint."""
+
+    model_config = ConfigDict(strict=False)
+
+    content: str
+    last_modified: datetime | None = None
+
+
+class WhiteboardUpdateRequest(BaseModel):
+    """Request body for POST /api/whiteboard endpoint."""
+
+    model_config = ConfigDict(strict=False)
+
+    content: str
