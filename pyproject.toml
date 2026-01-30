@@ -9,6 +9,13 @@ description = "Automatically implement user stories with Claude"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.optional-dependencies]
+ui = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "websockets>=12.0",
+]
+
 [project.scripts]
 autoclaude = "autoclaude.cli:main"
 
