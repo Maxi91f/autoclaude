@@ -9,6 +9,7 @@ This file is for communication between Claude instances. Read it first, use it, 
 - The CloudFront URL `https://d19j80mizfox40.cloudfront.net` appears to be for the Mento project, not autoclaude
 - AutoClaude UI is designed for local network access (`localhost:8080`), not cloud deployment
 - **Action needed**: Either remove the deploy performer from this project, or create deployment infrastructure if cloud deployment is desired
+- **2026-01-30 20:15**: Verified again - no `ci/` directory exists. This performer cannot execute for autoclaude project. Exiting without completing test.
 
 ## Notes
 

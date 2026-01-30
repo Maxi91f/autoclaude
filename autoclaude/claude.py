@@ -1,11 +1,37 @@
 """Claude runner for autoclaude."""
 
 import json
+import os
+import signal
 import subprocess
 from collections.abc import Callable
 from datetime import datetime
 
 from .paths import get_project_root
+
+# Track the current Claude process for cleanup
+_current_process: subprocess.Popen | None = None
+
+
+def get_current_process() -> subprocess.Popen | None:
+    """Get the currently running Claude process, if any."""
+    return _current_process
+
+
+def kill_current_process() -> None:
+    """Kill the current Claude process if running."""
+    global _current_process
+    if _current_process is not None and _current_process.poll() is None:
+        try:
+            # Kill the entire process group if it's in a new session
+            os.killpg(os.getpgid(_current_process.pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError, OSError):
+            # Process already dead or can't kill group, try direct kill
+            try:
+                _current_process.kill()
+            except (ProcessLookupError, PermissionError):
+                pass
+        _current_process = None
 
 
 def run_claude(
@@ -23,6 +49,7 @@ def run_claude(
     Returns:
         Tuple of (return_code, last_result, stderr_output)
     """
+    global _current_process
     prefix = prefix_fn or (lambda: "")
 
     proc = subprocess.Popen(
@@ -41,6 +68,9 @@ def run_claude(
         stderr=subprocess.PIPE,
         start_new_session=start_new_session,
     )
+
+    # Track the process for cleanup
+    _current_process = proc
 
     proc.stdin.write(prompt.encode("utf-8"))
     proc.stdin.close()
@@ -137,6 +167,9 @@ def run_claude(
     returncode = proc.wait()
     stderr_output = proc.stderr.read().decode("utf-8", errors="replace")
     print()  # Final newline
+
+    # Clear the process reference
+    _current_process = None
 
     return returncode, last_result, stderr_output
 

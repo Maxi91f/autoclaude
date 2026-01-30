@@ -4,6 +4,7 @@ import argparse
 import signal
 import sys
 import time
+import uvicorn
 from datetime import datetime
 
 from .performers.registry import (
@@ -15,10 +16,8 @@ from .performers.registry import (
     should_terminate,
 )
 
-import uvicorn
-
 from .beans import count_beans, query_beans
-from .claude import run_claude, run_single_prompt
+from .claude import kill_current_process, run_claude, run_single_prompt
 from .paths import get_whiteboard_path
 from .rate_limit import is_credit_error, parse_reset_time, wait_for_reset
 from .time_band import is_within_allowed_hours, wait_for_allowed_hours
@@ -73,11 +72,19 @@ def cmd_run(args: argparse.Namespace) -> int:
     def handle_sigint(_signum, _frame):
         nonlocal terminating
         if terminating:
-            # Second Ctrl+C - exit immediately
-            log("\n\n⏹ Force quit")
+            # Second Ctrl+C - kill Claude process and exit immediately
+            log("\n\n⏹ Force quit - killing Claude process...")
+            kill_current_process()
             sys.exit(130)
         terminating = True
         log("\n\n⏹ Finishing current iteration... (Ctrl+C again to force quit)")
+
+    def handle_sigterm(_signum, _frame):
+        nonlocal terminating
+        # SIGTERM - kill Claude process and exit gracefully
+        log("\n\n⏹ Received SIGTERM - killing Claude process...")
+        kill_current_process()
+        terminating = True
 
     def handle_sigusr1(_signum, _frame):
         """Handle pause request (SIGUSR1)."""
@@ -96,6 +103,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             json_events.emit_resumed()
 
     signal.signal(signal.SIGINT, handle_sigint)
+    signal.signal(signal.SIGTERM, handle_sigterm)
     signal.signal(signal.SIGUSR1, handle_sigusr1)
     signal.signal(signal.SIGUSR2, handle_sigusr2)
 
@@ -129,7 +137,9 @@ def cmd_run(args: argparse.Namespace) -> int:
                     log("\n⏹ Terminated while paused.")
                     done, pending = count_beans()
                     if json_mode:
-                        json_events.emit_terminated(by_user=True, after_iteration=iteration)
+                        json_events.emit_terminated(
+                            by_user=True, after_iteration=iteration
+                        )
                     return 0
             log("▶ Resumed!")
 
