@@ -85,6 +85,30 @@ export interface PerformersResponse {
   performers: PerformerInfo[]
 }
 
+// Task priority
+export type TaskPriority = 'critical' | 'high' | 'normal' | 'low' | 'deferred'
+
+// Task type
+export type TaskType = 'feature' | 'bug' | 'task' | 'epic' | 'chore'
+
+// Task status
+export type TaskStatus = 'todo' | 'in-progress' | 'completed' | 'cancelled'
+
+// Task info
+export interface TaskInfo {
+  id: string
+  title: string
+  status: string
+  type: string
+  priority: string
+  body?: string | null
+}
+
+// Response from /api/tasks
+export interface TasksResponse {
+  tasks: TaskInfo[]
+}
+
 // Helper to derive process status from StatusResponse
 export function getProcessStatus(status: StatusResponse): ProcessStatus {
   if (status.rate_limited_until) {

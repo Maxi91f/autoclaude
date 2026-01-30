@@ -95,3 +95,7 @@ export function useResume() {
 export function usePerformers() {
   return useApi<import('../types').PerformersResponse>('/api/performers')
 }
+
+export function useTasks() {
+  return useApi<import('../types').TasksResponse>('/api/tasks')
+}

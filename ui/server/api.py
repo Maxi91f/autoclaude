@@ -12,6 +12,8 @@ from .models import (
     StartResponse,
     StatusResponse,
     StopRequest,
+    TaskInfo,
+    TasksResponse,
 )
 from .process_manager import get_process_manager
 from .websocket import create_output_handler, get_connection_manager
@@ -107,6 +109,42 @@ async def resume_process() -> SimpleResponse:
     pm = get_process_manager()
     success, error = await pm.resume()
     return SimpleResponse(success=success, error=error)
+
+
+@router.get("/tasks", response_model=TasksResponse)
+async def list_tasks() -> TasksResponse:
+    """List tasks from beans CLI."""
+    import json
+
+    try:
+        result = subprocess.run(
+            [
+                "beans",
+                "query",
+                '{ beans(filter: { tags: ["autoclaude"] }) { id title status type priority body } }',
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            tasks = [
+                TaskInfo(
+                    id=bean["id"],
+                    title=bean["title"],
+                    status=bean.get("status", "todo"),
+                    type=bean.get("type", "task"),
+                    priority=bean.get("priority", "normal"),
+                    body=bean.get("body"),
+                )
+                for bean in data.get("beans", [])
+            ]
+            return TasksResponse(tasks=tasks)
+    except Exception as e:
+        # Return empty list on error
+        pass
+    return TasksResponse(tasks=[])
 
 
 @router.get("/performers", response_model=PerformersResponse)

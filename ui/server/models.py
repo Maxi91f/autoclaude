@@ -126,3 +126,53 @@ class PerformersResponse(BaseModel):
     model_config = ConfigDict(strict=False)
 
     performers: list[PerformerInfo]
+
+
+class TaskPriority(str, Enum):
+    """Task priority levels."""
+
+    CRITICAL = "critical"
+    HIGH = "high"
+    NORMAL = "normal"
+    LOW = "low"
+    DEFERRED = "deferred"
+
+
+class TaskType(str, Enum):
+    """Task types."""
+
+    FEATURE = "feature"
+    BUG = "bug"
+    TASK = "task"
+    EPIC = "epic"
+    CHORE = "chore"
+
+
+class TaskStatus(str, Enum):
+    """Task status levels."""
+
+    TODO = "todo"
+    IN_PROGRESS = "in-progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class TaskInfo(BaseModel):
+    """Information about a task from beans."""
+
+    model_config = ConfigDict(strict=False)
+
+    id: str
+    title: str
+    status: str
+    type: str
+    priority: str
+    body: str | None = None
+
+
+class TasksResponse(BaseModel):
+    """Response for /api/tasks endpoint."""
+
+    model_config = ConfigDict(strict=False)
+
+    tasks: list[TaskInfo]
