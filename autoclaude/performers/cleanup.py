@@ -1,10 +1,10 @@
-"""Cleanup/verification prompt for autoclaude."""
+"""Cleanup/verification performer for autoclaude."""
 
-from .base import BasePrompt, IterationContext
+from .base import BasePerformer, IterationContext
 
 
-class CleanupPrompt(BasePrompt):
-    """Cleanup and verification prompt.
+class CleanupPerformer(BasePerformer):
+    """Cleanup and verification performer.
 
     Runs every 7th iteration (position 0) to verify task statuses.
     Also runs if it's been 10+ iterations since last cleanup.

@@ -1,10 +1,10 @@
-"""UI review prompt for autoclaude."""
+"""UI review performer for autoclaude."""
 
-from .base import BasePrompt, IterationContext
+from .base import BasePerformer, IterationContext
 
 
-class UIPrompt(BasePrompt):
-    """UI/UX review prompt.
+class UIPerformer(BasePerformer):
+    """UI/UX review performer.
 
     Runs at cycle position 6 (every 7 iterations).
     Reviews the UI for issues but does NOT implement fixes.

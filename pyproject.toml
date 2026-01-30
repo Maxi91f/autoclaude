@@ -10,7 +10,10 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.scripts]
-autoclaude = "autoclaude:main"
+autoclaude = "autoclaude.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["autoclaude"]
 
 [tool.uv]
 package = true

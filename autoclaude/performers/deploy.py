@@ -1,10 +1,10 @@
-"""Deploy and test prompt for autoclaude."""
+"""Deploy and test performer for autoclaude."""
 
-from .base import BasePrompt, IterationContext
+from .base import BasePerformer, IterationContext
 
 
-class DeployPrompt(BasePrompt):
-    """Deploy and production testing prompt.
+class DeployPerformer(BasePerformer):
+    """Deploy and production testing performer.
 
     Runs at cycle position 5 (every 7 iterations).
     Can also be triggered if many beans completed since last deploy.
