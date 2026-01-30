@@ -22,11 +22,13 @@ from .claude import run_claude, run_single_prompt
 from .paths import get_whiteboard_path
 from .rate_limit import is_credit_error, parse_reset_time, wait_for_reset
 from .time_band import is_within_allowed_hours, wait_for_allowed_hours
+from . import json_events
 
 
 def cmd_run(args: argparse.Namespace) -> int:
     """Run Claude to implement tasks in a loop."""
     whiteboard_path = get_whiteboard_path()
+    json_mode = getattr(args, "json_events", False)
 
     if args.print_only:
         name = args.performer or "task"
@@ -63,26 +65,35 @@ def cmd_run(args: argparse.Namespace) -> int:
     terminating = False
     paused = False
 
+    def log(msg: str) -> None:
+        """Print message only if not in JSON mode."""
+        if not json_mode:
+            print(msg)
+
     def handle_sigint(_signum, _frame):
         nonlocal terminating
         if terminating:
             # Second Ctrl+C - exit immediately
-            print("\n\n⏹ Force quit")
+            log("\n\n⏹ Force quit")
             sys.exit(130)
         terminating = True
-        print("\n\n⏹ Finishing current iteration... (Ctrl+C again to force quit)")
+        log("\n\n⏹ Finishing current iteration... (Ctrl+C again to force quit)")
 
     def handle_sigusr1(_signum, _frame):
         """Handle pause request (SIGUSR1)."""
         nonlocal paused
         paused = True
-        print("\n\n⏸ Pausing after current iteration...")
+        log("\n\n⏸ Pausing after current iteration...")
+        if json_mode:
+            json_events.emit_paused(after_iteration=iteration)
 
     def handle_sigusr2(_signum, _frame):
         """Handle resume request (SIGUSR2)."""
         nonlocal paused
         paused = False
-        print("\n\n▶ Resuming...")
+        log("\n\n▶ Resuming...")
+        if json_mode:
+            json_events.emit_resumed()
 
     signal.signal(signal.SIGINT, handle_sigint)
     signal.signal(signal.SIGUSR1, handle_sigusr1)
@@ -94,36 +105,55 @@ def cmd_run(args: argparse.Namespace) -> int:
             if args.wait_for_time_band:
                 wait_for_allowed_hours(args.start_hour, args.end_hour)
             else:
-                print(
+                done, pending = count_beans()
+                log(
                     f"\n⏸ Outside allowed hours ({args.start_hour}:00-{args.end_hour}:00). Exiting."
                 )
-                print("   Use --wait-for-time-band to wait instead.")
+                log("   Use --wait-for-time-band to wait instead.")
+                if json_mode:
+                    json_events.emit_completed(
+                        reason="outside_hours",
+                        total_iterations=iteration,
+                        tasks_done=done,
+                        tasks_pending=pending,
+                    )
                 return 0
 
         # Wait while paused (SIGUSR1 pauses, SIGUSR2 resumes)
         if paused:
-            print("\n⏸ Paused. Waiting for resume signal (SIGUSR2)...")
+            log("\n⏸ Paused. Waiting for resume signal (SIGUSR2)...")
             while paused:
                 time.sleep(1)
                 # Check if terminating while paused
                 if terminating:
-                    print("\n⏹ Terminated while paused.")
+                    log("\n⏹ Terminated while paused.")
+                    done, pending = count_beans()
+                    if json_mode:
+                        json_events.emit_terminated(by_user=True, after_iteration=iteration)
                     return 0
-            print("▶ Resumed!")
+            log("▶ Resumed!")
 
         iteration += 1
         done, pending = count_beans()
 
         # Cyan header
-        print(f"\n\033[1;36m{'=' * 60}")
-        iter_info = f"ITERATION {iteration}"
-        if max_iterations > 0:
-            iter_info += f"/{max_iterations}"
-        print(f"{iter_info} | Done: {done} | Pending: {pending}")
-        print(f"{'=' * 60}\033[0m")
+        if not json_mode:
+            print(f"\n\033[1;36m{'=' * 60}")
+            iter_info = f"ITERATION {iteration}"
+            if max_iterations > 0:
+                iter_info += f"/{max_iterations}"
+            print(f"{iter_info} | Done: {done} | Pending: {pending}")
+            print(f"{'=' * 60}\033[0m")
 
         if max_iterations > 0 and iteration > max_iterations:
-            print(f"\n🛑 Reached max iterations ({max_iterations}). Stopping.")
+            log(f"\n🛑 Reached max iterations ({max_iterations}). Stopping.")
+            if json_mode:
+                json_events.emit_completed(
+                    reason="max_iterations",
+                    total_iterations=iteration - 1,
+                    tasks_done=done,
+                    tasks_pending=pending,
+                )
             return 0
 
         # Build context and determine which performer to run
@@ -131,10 +161,28 @@ def cmd_run(args: argparse.Namespace) -> int:
 
         # Check if we should terminate (no tasks and all special performers ran)
         if should_terminate(ctx):
-            print("\n🎉 All stories are completed!")
+            log("\n🎉 All stories are completed!")
+            if json_mode:
+                json_events.emit_completed(
+                    reason="all_tasks_done",
+                    total_iterations=iteration - 1,
+                    tasks_done=done,
+                    tasks_pending=pending,
+                )
             return 0
 
         performer = get_performer_for_context(ctx)
+
+        # Emit iteration_start event in JSON mode
+        if json_mode:
+            json_events.emit_iteration_start(
+                iteration=iteration,
+                performer=performer.name,
+                emoji=performer.emoji,
+                tasks_done=done,
+                tasks_pending=pending,
+                max_iterations=max_iterations,
+            )
 
         # Cyan bold for prefix to make it stand out
         # Use lambda so terminating/paused status is evaluated at print time
@@ -148,7 +196,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             return f"\033[1;32m[{timestamp}] I{iteration:02d} ({performer.emoji}){status_marker}>\033[0m "
 
         content = performer.build(whiteboard_path)
-        print(f"\n{performer.emoji} {performer.description}\n")
+        log(f"\n{performer.emoji} {performer.description}\n")
 
         # Record that this performer ran
         record_run(performer.name, iteration, pending)
@@ -164,19 +212,39 @@ def cmd_run(args: argparse.Namespace) -> int:
             error_text = last_result + "\n" + stderr_output
             if is_credit_error(error_text):
                 reset_time = parse_reset_time(error_text)
+                if json_mode:
+                    json_events.emit_iteration_end(
+                        iteration=iteration,
+                        result="rate_limited",
+                        tasks_done=done,
+                        tasks_pending=pending,
+                        no_progress_count=no_progress_count,
+                    )
+                    json_events.emit_rate_limited(
+                        reset_time=reset_time.isoformat() if reset_time else None
+                    )
                 if reset_time:
                     wait_for_reset(reset_time)
                     no_progress_count = 0  # Reset counter after waiting
                     continue  # Retry the iteration
                 else:
                     # Can't parse reset time, wait 1 hour as fallback
-                    print("\n⏳ Rate limit hit. Waiting 1 hour...")
+                    log("\n⏳ Rate limit hit. Waiting 1 hour...")
                     time.sleep(3600)
                     no_progress_count = 0
                     continue
 
         except Exception as e:
-            print(f"\n{get_prefix()}Error: {e}")
+            log(f"\n{get_prefix()}Error: {e}")
+            if json_mode:
+                json_events.emit_iteration_end(
+                    iteration=iteration,
+                    result="error",
+                    tasks_done=done,
+                    tasks_pending=pending,
+                    no_progress_count=no_progress_count,
+                    error_message=str(e),
+                )
             no_progress_count += 1
             continue
 
@@ -186,28 +254,50 @@ def cmd_run(args: argparse.Namespace) -> int:
 
         # Check if any progress was made
         new_done, new_pending = count_beans()
+        iteration_result = "success"
         if new_done > done:
             total = new_done + new_pending
             pct = new_done * 100 // total if total > 0 else 0
-            print(f"\n✓ Task completed! ({new_done}/{total} - {pct}%)")
+            log(f"\n✓ Task completed! ({new_done}/{total} - {pct}%)")
             no_progress_count = 0
         elif returncode != 0:
-            print(f"\n⚠ Claude exited with code {returncode}, continuing...")
+            log(f"\n⚠ Claude exited with code {returncode}, continuing...")
             no_progress_count += 1
+            iteration_result = "error"
         elif performer.name == "task" and new_done == done and new_pending == pending:
             # Only count "no progress" for task performer when beans didn't change
             no_progress_count += 1
-            print(f"\n⚠ No progress detected ({no_progress_count}/{max_no_progress})")
+            log(f"\n⚠ No progress detected ({no_progress_count}/{max_no_progress})")
+            iteration_result = "no_progress"
         # Special performers (cleanup, deploy, ui) don't affect no_progress_count
+
+        # Emit iteration_end event in JSON mode
+        if json_mode:
+            json_events.emit_iteration_end(
+                iteration=iteration,
+                result=iteration_result,
+                tasks_done=new_done,
+                tasks_pending=new_pending,
+                no_progress_count=no_progress_count,
+            )
 
         # Stop after too many iterations without progress
         if no_progress_count >= max_no_progress:
-            print(f"\n🛑 No progress in {max_no_progress} iterations. Stopping.")
+            log(f"\n🛑 No progress in {max_no_progress} iterations. Stopping.")
+            if json_mode:
+                json_events.emit_completed(
+                    reason="no_progress",
+                    total_iterations=iteration,
+                    tasks_done=new_done,
+                    tasks_pending=new_pending,
+                )
             return 1
 
         # Check if user requested graceful termination
         if terminating:
-            print("\n⏹ Terminated by user after iteration completed.")
+            log("\n⏹ Terminated by user after iteration completed.")
+            if json_mode:
+                json_events.emit_terminated(by_user=True, after_iteration=iteration)
             return 0
 
 
@@ -337,6 +427,11 @@ Examples:
         "--wait-for-time-band",
         action="store_true",
         help="Wait for allowed hours instead of exiting",
+    )
+    run_parser.add_argument(
+        "--json-events",
+        action="store_true",
+        help="Emit structured JSON events for UI communication",
     )
 
     # ui command

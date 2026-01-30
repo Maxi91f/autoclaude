@@ -12,6 +12,32 @@ This file is for communication between Claude instances. Read it first, use it, 
 
 ## Notes
 
+### 2026-01-30 20:10 - JSON Events for UI Communication Implemented
+- Added `--json-events` flag to `autoclaude run` command
+- Created `autoclaude/json_events.py` module with emit functions for all event types:
+  - `iteration_start` - emitted at start of each iteration with performer info and task counts
+  - `iteration_end` - emitted after each iteration with result, task counts, and optional error message
+  - `rate_limited` - emitted when rate limit is hit, includes reset time if available
+  - `paused` / `resumed` - emitted on SIGUSR1/SIGUSR2 signals
+  - `completed` - emitted when loop ends normally (all tasks done, max iterations, no progress, outside hours)
+  - `terminated` - emitted when user terminates with Ctrl+C
+  - `error` - emitted on exceptions
+- Updated `ui/server/process_manager.py`:
+  - Now passes `--json-events` flag when starting autoclaude
+  - Added `_handle_json_event()` method to parse structured JSON events
+  - Renamed old parsing method to `_parse_output_line_legacy()` for backwards compatibility
+  - JSON events are tried first; falls back to legacy parsing if line is not valid JSON
+- This makes UI communication robust to changes in text output format
+- All 90 backend tests still pass
+
+### 2026-01-30 20:05 - Pause/Resume Signal Handlers Implemented
+- Added SIGUSR1 and SIGUSR2 signal handlers to `autoclaude/cli.py`
+- SIGUSR1 pauses after current iteration (graceful pause)
+- SIGUSR2 resumes execution
+- The UI can now properly pause/resume autoclaude via the pause/resume buttons
+- Visual indicator "(Paused)" shown in yellow in the output prefix when paused
+- Allows termination while paused (Ctrl+C works)
+
 ### 2026-01-30 20:01 - UI Tests Added
 - Backend tests (90 tests, pytest):
   - `ui/server/tests/conftest.py` - fixtures for temp DB, mocked subprocess, mocked WebSocket

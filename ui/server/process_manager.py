@@ -1,6 +1,7 @@
 """Process manager for controlling the autoclaude subprocess."""
 
 import asyncio
+import json
 import signal
 import subprocess
 from dataclasses import dataclass, field
@@ -77,8 +78,8 @@ class ProcessManager:
         if self.is_running:
             return False, None, "Process is already running"
 
-        # Build command
-        cmd = ["autoclaude", "run"]
+        # Build command - always use --json-events for UI communication
+        cmd = ["autoclaude", "run", "--json-events"]
         if max_iterations:
             cmd.extend(["--max-iterations", str(max_iterations)])
         if performer:
@@ -268,7 +269,83 @@ class ProcessManager:
         self._state.current_iteration_data = None
 
     def _parse_output_line(self, line: str) -> None:
-        """Parse output line to update process state."""
+        """Parse output line to update process state.
+
+        First tries to parse as JSON event. Falls back to legacy string parsing
+        for backwards compatibility.
+        """
+        # Try to parse as JSON event first
+        if line.strip().startswith("{"):
+            try:
+                event = json.loads(line)
+                self._handle_json_event(event)
+                return
+            except json.JSONDecodeError:
+                pass  # Not valid JSON, fall through to legacy parsing
+
+        # Legacy string-based parsing (for backwards compatibility)
+        self._parse_output_line_legacy(line)
+
+    def _handle_json_event(self, event: dict) -> None:
+        """Handle a structured JSON event from autoclaude."""
+        event_type = event.get("event")
+
+        if event_type == "iteration_start":
+            # If there was a previous iteration without an end event, save it
+            if self._state.current_iteration_data:
+                self._save_iteration_history("success")
+
+            self._state.iteration = event.get("iteration")
+            self._state.performer = event.get("performer")
+            self._state.performer_emoji = event.get("emoji")
+
+            self._state.current_iteration_data = IterationData(
+                number=event.get("iteration", 0),
+                performer_name=event.get("performer", "unknown"),
+                performer_emoji=event.get("emoji", ""),
+                started_at=datetime.now(),
+                tasks_before=event.get("tasks_pending", 0) + event.get("tasks_done", 0),
+            )
+
+        elif event_type == "iteration_end":
+            result = event.get("result", "success")
+            self._state.no_progress_count = event.get("no_progress_count", 0)
+
+            if self._state.current_iteration_data:
+                error_msg = event.get("error_message")
+                self._save_iteration_history(result, error_message=error_msg)
+
+        elif event_type == "rate_limited":
+            self._state.status = ProcessStatus.RATE_LIMITED
+            reset_time_str = event.get("reset_time")
+            if reset_time_str:
+                try:
+                    self._state.rate_limited_until = datetime.fromisoformat(reset_time_str)
+                except ValueError:
+                    pass
+
+        elif event_type == "paused":
+            self._state.status = ProcessStatus.PAUSED
+
+        elif event_type == "resumed":
+            self._state.status = ProcessStatus.RUNNING
+
+        elif event_type == "completed":
+            # Process is finishing
+            if self._state.current_iteration_data:
+                self._save_iteration_history("success")
+
+        elif event_type == "terminated":
+            # Process was terminated by user
+            if self._state.current_iteration_data:
+                self._save_iteration_history("cancelled")
+
+        elif event_type == "error":
+            if self._state.current_iteration_data:
+                self._save_iteration_history("error", error_message=event.get("message"))
+
+    def _parse_output_line_legacy(self, line: str) -> None:
+        """Legacy string-based parsing for backwards compatibility."""
         # Parse iteration start - format varies but usually contains "iteration X"
         if "Starting iteration" in line or "iteration" in line.lower():
             try:
