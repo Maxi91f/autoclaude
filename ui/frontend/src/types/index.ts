@@ -120,6 +120,45 @@ export interface WhiteboardUpdateRequest {
   content: string
 }
 
+// Iteration result types
+export type IterationResult = 'success' | 'no_progress' | 'error' | 'rate_limited' | 'cancelled'
+
+// Iteration info for history
+export interface IterationInfo {
+  id: number
+  iteration_number: number
+  performer_name: string
+  performer_emoji: string
+  result: IterationResult
+  tasks_before: number
+  tasks_after: number
+  duration_seconds: number
+  started_at: string
+  ended_at: string
+  error_message?: string | null
+}
+
+// Response from GET /api/history
+export interface HistoryResponse {
+  iterations: IterationInfo[]
+  total: number
+  has_more: boolean
+}
+
+// Response from GET /api/history/stats
+export interface HistoryStatsResponse {
+  total: number
+  success_count: number
+  no_progress_count: number
+  error_count: number
+  avg_duration_seconds: number
+}
+
+// Response from GET /api/history/performers
+export interface HistoryPerformersResponse {
+  performers: string[]
+}
+
 // Helper to derive process status from StatusResponse
 export function getProcessStatus(status: StatusResponse): ProcessStatus {
   if (status.rate_limited_until) {

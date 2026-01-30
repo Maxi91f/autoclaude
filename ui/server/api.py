@@ -6,6 +6,10 @@ from typing import Any
 from fastapi import APIRouter
 
 from .models import (
+    HistoryPerformersResponse,
+    HistoryResponse,
+    HistoryStatsResponse,
+    IterationInfo,
     PerformersResponse,
     SimpleResponse,
     StartRequest,
@@ -17,6 +21,7 @@ from .models import (
     WhiteboardResponse,
     WhiteboardUpdateRequest,
 )
+from .history import get_iterations, get_performers as get_history_performers, get_stats
 from .process_manager import get_process_manager
 from .websocket import create_output_handler, get_connection_manager
 
@@ -212,3 +217,65 @@ async def update_whiteboard(request: WhiteboardUpdateRequest) -> SimpleResponse:
         return SimpleResponse(success=True)
     except Exception as e:
         return SimpleResponse(success=False, error=str(e))
+
+
+@router.get("/history", response_model=HistoryResponse)
+async def get_history(
+    limit: int = 50,
+    offset: int = 0,
+    result: str | None = None,
+    performer: str | None = None,
+) -> HistoryResponse:
+    """Get iteration history with pagination and optional filters."""
+    from .history import IterationResult as HistoryIterationResult
+
+    result_filter = None
+    if result:
+        try:
+            result_filter = HistoryIterationResult(result)
+        except ValueError:
+            pass
+
+    records, total = get_iterations(
+        limit=limit,
+        offset=offset,
+        result_filter=result_filter,
+        performer_filter=performer,
+    )
+
+    iterations = [
+        IterationInfo(
+            id=r.id or 0,
+            iteration_number=r.iteration_number,
+            performer_name=r.performer_name,
+            performer_emoji=r.performer_emoji,
+            result=r.result.value,
+            tasks_before=r.tasks_before,
+            tasks_after=r.tasks_after,
+            duration_seconds=r.duration_seconds,
+            started_at=r.started_at,
+            ended_at=r.ended_at,
+            error_message=r.error_message,
+        )
+        for r in records
+    ]
+
+    return HistoryResponse(
+        iterations=iterations,
+        total=total,
+        has_more=(offset + len(iterations)) < total,
+    )
+
+
+@router.get("/history/stats", response_model=HistoryStatsResponse)
+async def get_history_stats() -> HistoryStatsResponse:
+    """Get history statistics."""
+    stats = get_stats()
+    return HistoryStatsResponse(**stats)
+
+
+@router.get("/history/performers", response_model=HistoryPerformersResponse)
+async def get_history_performer_list() -> HistoryPerformersResponse:
+    """Get list of performers from history."""
+    performers = get_history_performers()
+    return HistoryPerformersResponse(performers=performers)

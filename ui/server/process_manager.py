@@ -2,11 +2,23 @@
 
 import asyncio
 import signal
-from dataclasses import dataclass
+import subprocess
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable
 
 from .models import ProcessStatus
+
+
+@dataclass
+class IterationData:
+    """Data for tracking the current iteration."""
+
+    number: int
+    performer_name: str
+    performer_emoji: str
+    started_at: datetime
+    tasks_before: int = 0
 
 
 @dataclass
@@ -21,6 +33,7 @@ class ProcessState:
     started_at: datetime | None = None
     rate_limited_until: datetime | None = None
     no_progress_count: int = 0
+    current_iteration_data: IterationData | None = None
 
 
 class ProcessManager:
@@ -101,10 +114,17 @@ class ProcessManager:
         Returns: (success, error_message)
         """
         if self._process is None or self._process.returncode is not None:
+            # Save any ongoing iteration as cancelled
+            if self._state.current_iteration_data:
+                self._save_iteration_history("cancelled")
             self._state.status = ProcessStatus.STOPPED
             return True, None
 
         try:
+            # Save any ongoing iteration as cancelled
+            if self._state.current_iteration_data:
+                self._save_iteration_history("cancelled")
+
             if force:
                 self._process.kill()
             else:
@@ -180,32 +200,145 @@ class ProcessManager:
                 self._state.status = ProcessStatus.STOPPED
                 self._state.pid = None
 
+    def _count_pending_beans(self) -> int:
+        """Count beans with todo or in-progress status."""
+        import json
+
+        try:
+            result = subprocess.run(
+                [
+                    "beans",
+                    "query",
+                    '{ beans(filter: { tags: ["autoclaude"], status: ["todo", "in-progress"] }) { id } }',
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+                return len(data.get("beans", []))
+        except Exception:
+            pass
+        return 0
+
+    def _save_iteration_history(self, result: str, error_message: str | None = None) -> None:
+        """Save the current iteration to history."""
+        from .history import IterationResult, IterationRecord, save_iteration
+
+        if not self._state.current_iteration_data:
+            return
+
+        iter_data = self._state.current_iteration_data
+        now = datetime.now()
+
+        # Map result string to enum
+        result_map = {
+            "success": IterationResult.SUCCESS,
+            "no_progress": IterationResult.NO_PROGRESS,
+            "error": IterationResult.ERROR,
+            "rate_limited": IterationResult.RATE_LIMITED,
+            "cancelled": IterationResult.CANCELLED,
+        }
+        iteration_result = result_map.get(result, IterationResult.SUCCESS)
+
+        tasks_after = self._count_pending_beans()
+        duration = (now - iter_data.started_at).total_seconds()
+
+        record = IterationRecord(
+            id=None,
+            iteration_number=iter_data.number,
+            performer_name=iter_data.performer_name,
+            performer_emoji=iter_data.performer_emoji,
+            result=iteration_result,
+            tasks_before=iter_data.tasks_before,
+            tasks_after=tasks_after,
+            duration_seconds=duration,
+            started_at=iter_data.started_at,
+            ended_at=now,
+            error_message=error_message,
+        )
+
+        try:
+            save_iteration(record)
+        except Exception:
+            pass
+
+        # Clear current iteration data
+        self._state.current_iteration_data = None
+
     def _parse_output_line(self, line: str) -> None:
         """Parse output line to update process state."""
-        # Parse iteration start
-        if "Starting iteration" in line:
+        # Parse iteration start - format varies but usually contains "iteration X"
+        if "Starting iteration" in line or "iteration" in line.lower():
             try:
-                # Format: "Starting iteration X with performer..."
+                # Try to extract iteration number
                 parts = line.split()
                 for i, part in enumerate(parts):
-                    if part == "iteration":
-                        self._state.iteration = int(parts[i + 1])
-                        break
+                    if part.lower() == "iteration" and i + 1 < len(parts):
+                        num_str = parts[i + 1].rstrip(".:,")
+                        if num_str.isdigit():
+                            new_iteration = int(num_str)
+
+                            # If there was a previous iteration, save it as success
+                            if self._state.current_iteration_data:
+                                self._save_iteration_history("success")
+
+                            self._state.iteration = new_iteration
+
+                            # Start tracking new iteration
+                            performer_name = self._state.performer or "unknown"
+                            performer_emoji = self._state.performer_emoji or ""
+                            tasks_before = self._count_pending_beans()
+
+                            self._state.current_iteration_data = IterationData(
+                                number=new_iteration,
+                                performer_name=performer_name,
+                                performer_emoji=performer_emoji,
+                                started_at=datetime.now(),
+                                tasks_before=tasks_before,
+                            )
+                            break
             except (IndexError, ValueError):
                 pass
 
-        # Parse performer
+        # Parse performer - look for patterns like "performer: task" or emoji + name
         if "performer:" in line.lower() or "running performer" in line.lower():
-            # Try to extract performer name
-            pass
+            try:
+                parts = line.split("performer")
+                if len(parts) > 1:
+                    performer_part = parts[1].strip().lstrip(":").strip()
+                    if performer_part:
+                        # First word is likely the performer name
+                        name = performer_part.split()[0].strip()
+                        if name and not name.startswith("("):
+                            self._state.performer = name
+            except Exception:
+                pass
 
         # Parse rate limit
         if "rate limit" in line.lower():
             self._state.status = ProcessStatus.RATE_LIMITED
+            # Save iteration as rate limited
+            if self._state.current_iteration_data:
+                self._save_iteration_history("rate_limited")
 
         # Parse no progress
         if "no progress" in line.lower():
             self._state.no_progress_count += 1
+            # Save iteration as no progress
+            if self._state.current_iteration_data:
+                self._save_iteration_history("no_progress")
+
+        # Parse errors
+        if line.lower().startswith("error:") or "fatal error" in line.lower():
+            if self._state.current_iteration_data:
+                self._save_iteration_history("error", error_message=line)
+
+        # Parse completion messages
+        if "completed successfully" in line.lower() or "iteration complete" in line.lower():
+            if self._state.current_iteration_data:
+                self._save_iteration_history("success")
 
 
 # Singleton instance

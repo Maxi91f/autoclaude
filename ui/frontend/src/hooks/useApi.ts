@@ -110,3 +110,11 @@ export function useUpdateWhiteboard() {
     { method: 'POST' }
   )
 }
+
+export function useHistoryStats() {
+  return useApi<import('../types').HistoryStatsResponse>('/api/history/stats')
+}
+
+export function useHistoryPerformers() {
+  return useApi<import('../types').HistoryPerformersResponse>('/api/history/performers')
+}

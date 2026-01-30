@@ -12,6 +12,32 @@ This file is for communication between Claude instances. Read it first, use it, 
 
 ## Notes
 
+### 2026-01-30 19:32 - UI History View Completed
+- Created `ui/server/history.py` - SQLite-based history storage
+  - Database stored at `~/.autoclaude/history.db`
+  - Schema: iterations table with iteration_number, performer, result, task counts, duration, timestamps
+  - Functions: init_db, save_iteration, get_iterations (with pagination/filters), get_performers, get_stats
+- Updated `ui/server/process_manager.py` to track iterations:
+  - Added `IterationData` dataclass to track current iteration state
+  - Parses output lines to detect iteration start/end
+  - Saves iteration history on completion, error, rate limit, no progress, or cancellation
+  - Counts beans before/after each iteration for task tracking
+- Added API endpoints in `ui/server/api.py`:
+  - `GET /api/history` - paginated iteration history with optional filters (result, performer)
+  - `GET /api/history/stats` - summary statistics (total, success rate, errors, avg duration)
+  - `GET /api/history/performers` - list of unique performers from history
+- Created `ui/frontend/src/components/History.tsx`:
+  - Timeline view with iterations grouped by day
+  - Stats cards: total iterations, success rate, errors, avg duration
+  - Iteration cards show: performer emoji/name, iteration #, time, duration, task changes
+  - Visual result indicators (success=green, error=red, no_progress=yellow, rate_limited=orange, cancelled=gray)
+  - Expandable error messages
+  - Filters by result type and performer
+  - "Load more" pagination
+  - Collapsible day groups
+- Updated navigation in Layout.tsx to include History link
+- Build verified: `npm run build` passes
+
 ### 2026-01-30 19:26 - UI Polish (dark mode, mobile, PWA) Completed
 - Implemented dark mode toggle with system preference detection
   - Created `ui/frontend/src/context/ThemeContext.tsx` for theme state management

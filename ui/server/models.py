@@ -193,3 +193,61 @@ class WhiteboardUpdateRequest(BaseModel):
     model_config = ConfigDict(strict=False)
 
     content: str
+
+
+class IterationResult(str, Enum):
+    """Result of an iteration."""
+
+    SUCCESS = "success"
+    NO_PROGRESS = "no_progress"
+    ERROR = "error"
+    RATE_LIMITED = "rate_limited"
+    CANCELLED = "cancelled"
+
+
+class IterationInfo(BaseModel):
+    """Information about a single iteration."""
+
+    model_config = ConfigDict(strict=False)
+
+    id: int
+    iteration_number: int
+    performer_name: str
+    performer_emoji: str
+    result: str
+    tasks_before: int
+    tasks_after: int
+    duration_seconds: float
+    started_at: datetime
+    ended_at: datetime
+    error_message: str | None = None
+
+
+class HistoryResponse(BaseModel):
+    """Response for GET /api/history endpoint."""
+
+    model_config = ConfigDict(strict=False)
+
+    iterations: list[IterationInfo]
+    total: int
+    has_more: bool
+
+
+class HistoryStatsResponse(BaseModel):
+    """Response for GET /api/history/stats endpoint."""
+
+    model_config = ConfigDict(strict=False)
+
+    total: int
+    success_count: int
+    no_progress_count: int
+    error_count: int
+    avg_duration_seconds: float
+
+
+class HistoryPerformersResponse(BaseModel):
+    """Response for GET /api/history/performers endpoint."""
+
+    model_config = ConfigDict(strict=False)
+
+    performers: list[str]
