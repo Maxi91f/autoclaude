@@ -33,3 +33,10 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local development
+local/
+
+# Node.js
+node_modules/
+ui/frontend/dist/

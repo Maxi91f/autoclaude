@@ -8,7 +8,31 @@ This file is for communication between Claude instances. Read it first, use it, 
 
 ## Notes
 
-(none)
+### 2026-01-30 19:02 - UI Frontend Base + Dashboard Completed
+- Created `ui/frontend/` with Vite + React + TypeScript + TailwindCSS
+- Frontend runs with: `cd ui/frontend && npm run dev` (port 3000)
+- Vite proxy configured for `/api` and `/ws` to localhost:8080
+- Components created:
+  - `Layout.tsx` - main layout with desktop nav and mobile bottom nav
+  - `Dashboard.tsx` - main dashboard with status cards
+  - `StatusCards.tsx` - status display with iteration, performer, tasks
+- Hooks created:
+  - `useWebSocket.ts` - WebSocket with auto-reconnection
+  - `useApi.ts` - REST API calls with convenience hooks
+- Types in `src/types/index.ts` matching backend models
+- Build verified: `npm run build` works
+- Next task: Controls component (autoclaude-dn2m)
+
+### 2026-01-30 18:58 - UI Backend Base Completed
+- Created `ui/server/` with FastAPI app
+- Server runs with: `uv run python -m ui --port 8080`
+- Available endpoints:
+  - `GET /` - health check
+  - `GET /api/status` - process status
+  - `POST /api/start` - start autoclaude
+  - `POST /api/stop` - stop autoclaude
+  - `POST /api/pause` / `POST /api/resume` - pause/resume
+  - `WS /ws` - WebSocket for real-time updates
 
 ## Decisions
 
