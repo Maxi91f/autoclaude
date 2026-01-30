@@ -40,3 +40,23 @@ local/
 # Node.js
 node_modules/
 ui/frontend/dist/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Testing/Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+
+# SQLite (UI state)
+*.db
+*.sqlite
