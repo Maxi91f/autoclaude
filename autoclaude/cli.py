@@ -61,6 +61,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     max_no_progress = 5
     max_iterations = args.max_iterations
     terminating = False
+    paused = False
 
     def handle_sigint(_signum, _frame):
         nonlocal terminating
@@ -71,7 +72,21 @@ def cmd_run(args: argparse.Namespace) -> int:
         terminating = True
         print("\n\n⏹ Finishing current iteration... (Ctrl+C again to force quit)")
 
+    def handle_sigusr1(_signum, _frame):
+        """Handle pause request (SIGUSR1)."""
+        nonlocal paused
+        paused = True
+        print("\n\n⏸ Pausing after current iteration...")
+
+    def handle_sigusr2(_signum, _frame):
+        """Handle resume request (SIGUSR2)."""
+        nonlocal paused
+        paused = False
+        print("\n\n▶ Resuming...")
+
     signal.signal(signal.SIGINT, handle_sigint)
+    signal.signal(signal.SIGUSR1, handle_sigusr1)
+    signal.signal(signal.SIGUSR2, handle_sigusr2)
 
     while True:
         # Check allowed hours before each iteration
@@ -84,6 +99,17 @@ def cmd_run(args: argparse.Namespace) -> int:
                 )
                 print("   Use --wait-for-time-band to wait instead.")
                 return 0
+
+        # Wait while paused (SIGUSR1 pauses, SIGUSR2 resumes)
+        if paused:
+            print("\n⏸ Paused. Waiting for resume signal (SIGUSR2)...")
+            while paused:
+                time.sleep(1)
+                # Check if terminating while paused
+                if terminating:
+                    print("\n⏹ Terminated while paused.")
+                    return 0
+            print("▶ Resumed!")
 
         iteration += 1
         done, pending = count_beans()
@@ -111,13 +137,15 @@ def cmd_run(args: argparse.Namespace) -> int:
         performer = get_performer_for_context(ctx)
 
         # Cyan bold for prefix to make it stand out
-        # Use lambda so terminating status is evaluated at print time
+        # Use lambda so terminating/paused status is evaluated at print time
         def get_prefix():
-            term_marker = (
-                " \033[1;31m(Terminating...)\033[1;32m" if terminating else ""
-            )
+            status_marker = ""
+            if terminating:
+                status_marker = " \033[1;31m(Terminating...)\033[1;32m"
+            elif paused:
+                status_marker = " \033[1;33m(Paused)\033[1;32m"
             timestamp = datetime.now().strftime("%H:%M")
-            return f"\033[1;32m[{timestamp}] I{iteration:02d} ({performer.emoji}){term_marker}>\033[0m "
+            return f"\033[1;32m[{timestamp}] I{iteration:02d} ({performer.emoji}){status_marker}>\033[0m "
 
         content = performer.build(whiteboard_path)
         print(f"\n{performer.emoji} {performer.description}\n")
