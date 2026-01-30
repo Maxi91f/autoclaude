@@ -15,6 +15,8 @@ from .performers.registry import (
     should_terminate,
 )
 
+import uvicorn
+
 from .beans import count_beans, query_beans
 from .claude import run_claude, run_single_prompt
 from .paths import get_whiteboard_path
@@ -181,6 +183,18 @@ def cmd_run(args: argparse.Namespace) -> int:
             return 0
 
 
+def cmd_ui(args: argparse.Namespace) -> int:
+    """Run the AutoClaude UI server."""
+    uvicorn.run(
+        "ui.server.app:create_app",
+        factory=True,
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+    )
+    return 0
+
+
 def cmd_list(_args: argparse.Namespace) -> int:
     """List tasks with autoclaude tag."""
     beans = query_beans()
@@ -239,6 +253,9 @@ Examples:
   autoclaude run -p deploy   # Run deploy performer once
   autoclaude run -p ui       # Run UI review performer once
   autoclaude run -p cleanup  # Run cleanup performer once
+  autoclaude ui              # Launch the web UI on 0.0.0.0:8080
+  autoclaude ui --port 3000  # Launch on custom port
+  autoclaude ui --reload     # Launch with auto-reload (dev mode)
         """,
     )
 
@@ -294,6 +311,27 @@ Examples:
         help="Wait for allowed hours instead of exiting",
     )
 
+    # ui command
+    ui_parser = subparsers.add_parser(
+        "ui", help="Launch the AutoClaude web UI", allow_abbrev=False
+    )
+    ui_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0 for network access)",
+    )
+    ui_parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Port to bind to (default: 8080)",
+    )
+    ui_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload for development",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -303,6 +341,7 @@ Examples:
     commands = {
         "list": cmd_list,
         "run": cmd_run,
+        "ui": cmd_ui,
     }
 
     return commands[args.command](args)
