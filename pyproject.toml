@@ -15,6 +15,11 @@ ui = [
     "uvicorn[standard]>=0.27.0",
     "websockets>=12.0",
 ]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+]
 
 [project.scripts]
 autoclaude = "autoclaude.cli:main"
@@ -24,3 +29,10 @@ packages = ["autoclaude"]
 
 [tool.uv]
 package = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["ui/server/tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_default_fixture_loop_scope = "function"

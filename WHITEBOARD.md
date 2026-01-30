@@ -12,6 +12,32 @@ This file is for communication between Claude instances. Read it first, use it, 
 
 ## Notes
 
+### 2026-01-30 20:01 - UI Tests Added
+- Backend tests (90 tests, pytest):
+  - `ui/server/tests/conftest.py` - fixtures for temp DB, mocked subprocess, mocked WebSocket
+  - `ui/server/tests/test_history.py` - SQLite operations (init_db, save_iteration, get_iterations, etc.)
+  - `ui/server/tests/test_websocket.py` - ConnectionManager, classify_output_line, output handler
+  - `ui/server/tests/test_api.py` - All REST endpoints (status, start, stop, pause, resume, tasks, etc.)
+  - `ui/server/tests/test_process_manager.py` - ProcessManager (start, stop, pause, resume, output parsing)
+- Frontend tests (42 tests, vitest):
+  - `ui/frontend/src/__tests__/setup.ts` - Test setup with mocked WebSocket and fetch
+  - `ui/frontend/src/__tests__/hooks/useApi.test.ts` - useApi hook and convenience hooks
+  - `ui/frontend/src/__tests__/hooks/useWebSocket.test.ts` - WebSocket hook connection, send, reconnect
+  - `ui/frontend/src/__tests__/components/StatusCards.test.tsx` - StatusCards component rendering
+  - `ui/frontend/src/__tests__/types.test.ts` - getProcessStatus helper function
+- CI workflow added: `.github/workflows/test.yml`
+  - Runs backend tests with uv + pytest
+  - Runs frontend tests with npm + vitest
+  - Builds frontend to verify no breakage
+- Test dependencies added to `pyproject.toml` (pytest, pytest-asyncio, httpx)
+- Vitest configured in `ui/frontend/vite.config.ts`
+- All tests passing: 90 backend + 42 frontend = 132 total tests
+
+### 2026-01-30 19:51 - CLI 'ui' Command Added
+- Added `autoclaude ui` command to launch the web UI server
+- Supports `--host`, `--port`, and `--reload` flags
+- Now users can run `autoclaude ui` instead of `python -m ui`
+
 ### 2026-01-30 19:32 - UI History View Completed
 - Created `ui/server/history.py` - SQLite-based history storage
   - Database stored at `~/.autoclaude/history.db`
