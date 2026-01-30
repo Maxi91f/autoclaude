@@ -63,21 +63,21 @@ function Whiteboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-100">Whiteboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Whiteboard</h1>
         <div className="flex items-center gap-2">
           {!isEditing && (
             <>
               <button
                 onClick={handleRefresh}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors"
               >
                 {loading ? '...' : 'Refresh'}
               </button>
               <button
                 onClick={handleEdit}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-white transition-colors"
               >
                 Edit
               </button>
@@ -88,14 +88,14 @@ function Whiteboard() {
               <button
                 onClick={handleCancel}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-white transition-colors"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -106,19 +106,19 @@ function Whiteboard() {
 
       {/* Last modified */}
       {data?.last_modified && !isEditing && (
-        <div className="text-sm text-gray-400">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
           Last modified: {formatLastModified(data.last_modified)}
         </div>
       )}
 
       {/* Error messages */}
       {error && (
-        <div className="p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-300">
+        <div className="p-4 bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300">
           Error loading whiteboard: {error}
         </div>
       )}
       {saveError && (
-        <div className="p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-300">
+        <div className="p-4 bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300">
           Error saving whiteboard: {saveError}
         </div>
       )}
@@ -126,7 +126,7 @@ function Whiteboard() {
       {/* Loading state */}
       {loading && !data && (
         <div className="flex items-center justify-center py-12">
-          <div className="text-gray-400">Loading whiteboard...</div>
+          <div className="text-gray-500 dark:text-gray-400">Loading whiteboard...</div>
         </div>
       )}
 
@@ -136,11 +136,11 @@ function Whiteboard() {
           <textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
-            className="w-full h-[600px] bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            className="w-full h-[600px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4 text-gray-900 dark:text-gray-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             placeholder="Write your notes here..."
             disabled={saving}
           />
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
             Tip: Use Markdown for formatting (headings, lists, bold, etc.)
           </div>
         </div>
@@ -148,74 +148,74 @@ function Whiteboard() {
 
       {/* View mode - Markdown rendered */}
       {!isEditing && data && (
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 min-h-[400px]">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 min-h-[400px]">
           {data.content ? (
-            <div className="prose prose-invert prose-gray max-w-none">
+            <div className="prose dark:prose-invert prose-gray max-w-none">
               <ReactMarkdown
                 components={{
                   h1: ({ children }) => (
-                    <h1 className="text-2xl font-bold text-gray-100 mb-4 pb-2 border-b border-gray-700">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
                       {children}
                     </h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="text-xl font-semibold text-gray-200 mt-6 mb-3">
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mt-6 mb-3">
                       {children}
                     </h2>
                   ),
                   h3: ({ children }) => (
-                    <h3 className="text-lg font-semibold text-gray-200 mt-4 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">
                       {children}
                     </h3>
                   ),
                   p: ({ children }) => (
-                    <p className="text-gray-300 mb-3 leading-relaxed">{children}</p>
+                    <p className="text-gray-700 dark:text-gray-300 mb-3 leading-relaxed">{children}</p>
                   ),
                   ul: ({ children }) => (
-                    <ul className="list-disc list-inside text-gray-300 mb-3 space-y-1">
+                    <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 mb-3 space-y-1">
                       {children}
                     </ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="list-decimal list-inside text-gray-300 mb-3 space-y-1">
+                    <ol className="list-decimal list-inside text-gray-700 dark:text-gray-300 mb-3 space-y-1">
                       {children}
                     </ol>
                   ),
                   li: ({ children }) => (
-                    <li className="text-gray-300">{children}</li>
+                    <li className="text-gray-700 dark:text-gray-300">{children}</li>
                   ),
                   a: ({ href, children }) => (
                     <a
                       href={href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary-400 hover:text-primary-300 underline"
+                      className="text-primary-600 dark:text-primary-400 hover:text-primary-500 dark:hover:text-primary-300 underline"
                     >
                       {children}
                     </a>
                   ),
                   code: ({ children }) => (
-                    <code className="bg-gray-900 text-gray-200 px-1.5 py-0.5 rounded text-sm font-mono">
+                    <code className="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded text-sm font-mono">
                       {children}
                     </code>
                   ),
                   pre: ({ children }) => (
-                    <pre className="bg-gray-900 border border-gray-700 rounded-lg p-4 overflow-x-auto mb-4">
+                    <pre className="bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-x-auto mb-4">
                       {children}
                     </pre>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-400 my-4">
+                    <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 my-4">
                       {children}
                     </blockquote>
                   ),
                   strong: ({ children }) => (
-                    <strong className="font-bold text-gray-100">{children}</strong>
+                    <strong className="font-bold text-gray-900 dark:text-gray-100">{children}</strong>
                   ),
                   em: ({ children }) => (
-                    <em className="italic text-gray-300">{children}</em>
+                    <em className="italic text-gray-700 dark:text-gray-300">{children}</em>
                   ),
-                  hr: () => <hr className="border-gray-700 my-6" />,
+                  hr: () => <hr className="border-gray-200 dark:border-gray-700 my-6" />,
                 }}
               >
                 {data.content}

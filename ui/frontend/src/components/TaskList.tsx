@@ -22,10 +22,10 @@ const typeColors: Record<string, string> = {
 
 // Status display order and colors
 const statusConfig: Record<string, { label: string; bgColor: string; textColor: string; order: number }> = {
-  'in-progress': { label: 'In Progress', bgColor: 'bg-blue-900/50', textColor: 'text-blue-300', order: 0 },
-  'todo': { label: 'To Do', bgColor: 'bg-yellow-900/50', textColor: 'text-yellow-300', order: 1 },
-  'completed': { label: 'Completed', bgColor: 'bg-green-900/50', textColor: 'text-green-300', order: 2 },
-  'cancelled': { label: 'Cancelled', bgColor: 'bg-gray-900/50', textColor: 'text-gray-400', order: 3 },
+  'in-progress': { label: 'In Progress', bgColor: 'bg-blue-100 dark:bg-blue-900/50', textColor: 'text-blue-700 dark:text-blue-300', order: 0 },
+  'todo': { label: 'To Do', bgColor: 'bg-yellow-100 dark:bg-yellow-900/50', textColor: 'text-yellow-700 dark:text-yellow-300', order: 1 },
+  'completed': { label: 'Completed', bgColor: 'bg-green-100 dark:bg-green-900/50', textColor: 'text-green-700 dark:text-green-300', order: 2 },
+  'cancelled': { label: 'Cancelled', bgColor: 'bg-gray-100 dark:bg-gray-900/50', textColor: 'text-gray-600 dark:text-gray-400', order: 3 },
 }
 
 // Priority sort order (critical first)
@@ -66,11 +66,11 @@ function TaskCard({ task }: { task: TaskInfo }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors">
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-gray-100 truncate">{task.title}</h3>
-          <p className="text-sm text-gray-400 mt-1">{task.id}</p>
+          <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">{task.title}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{task.id}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <TypeBadge type={task.type} />
@@ -82,7 +82,7 @@ function TaskCard({ task }: { task: TaskInfo }) {
         <div className="mt-3">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="text-sm text-gray-400 hover:text-gray-300 flex items-center gap-1"
+            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-1 min-h-[44px] py-2"
           >
             <span className={`transform transition-transform ${expanded ? 'rotate-90' : ''}`}>
               {'>'}
@@ -90,7 +90,7 @@ function TaskCard({ task }: { task: TaskInfo }) {
             {expanded ? 'Hide details' : 'Show details'}
           </button>
           {expanded && (
-            <div className="mt-2 text-sm text-gray-300 bg-gray-900 rounded p-3 whitespace-pre-wrap overflow-x-auto">
+            <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 rounded p-3 whitespace-pre-wrap overflow-x-auto">
               {task.body}
             </div>
           )}
@@ -114,14 +114,14 @@ function TaskSection({ status, tasks, collapsed, onToggle }: TaskSectionProps) {
     <div className="mb-6">
       <button
         onClick={onToggle}
-        className={`w-full flex items-center justify-between p-3 rounded-lg ${config.bgColor} hover:opacity-90 transition-opacity`}
+        className={`w-full min-h-[44px] flex items-center justify-between p-3 rounded-lg ${config.bgColor} hover:opacity-90 transition-opacity`}
       >
         <div className="flex items-center gap-2">
           <span className={`transform transition-transform ${collapsed ? '' : 'rotate-90'}`}>
             {'>'}
           </span>
           <h2 className={`text-lg font-semibold ${config.textColor}`}>{config.label}</h2>
-          <span className={`px-2 py-0.5 rounded-full text-xs ${config.textColor} bg-black/20`}>
+          <span className={`px-2 py-0.5 rounded-full text-xs ${config.textColor} bg-black/10 dark:bg-black/20`}>
             {tasks.length}
           </span>
         </div>
@@ -246,11 +246,11 @@ function TaskList() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-100">Tasks</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Tasks</h1>
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors"
         >
           <span className={loading ? 'animate-spin' : ''}>
             {loading ? '...' : 'Refresh'}
@@ -259,13 +259,13 @@ function TaskList() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
+      <div className="flex flex-wrap gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-400">Status:</label>
+          <label className="text-sm text-gray-600 dark:text-gray-400">Status:</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="min-h-[44px] bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="all">All</option>
             <option value="in-progress">In Progress</option>
@@ -276,11 +276,11 @@ function TaskList() {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-400">Type:</label>
+          <label className="text-sm text-gray-600 dark:text-gray-400">Type:</label>
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="min-h-[44px] bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="all">All</option>
             {availableTypes.map((type) => (
@@ -292,11 +292,11 @@ function TaskList() {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-400">Sort by:</label>
+          <label className="text-sm text-gray-600 dark:text-gray-400">Sort by:</label>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="min-h-[44px] bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="priority">Priority</option>
             <option value="status">Status</option>
@@ -304,7 +304,7 @@ function TaskList() {
           </select>
           <button
             onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-            className="px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm hover:bg-gray-600 transition-colors"
+            className="px-3 py-1.5 min-h-[44px] bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
           >
             {sortOrder === 'asc' ? 'Asc' : 'Desc'}
@@ -314,7 +314,7 @@ function TaskList() {
 
       {/* Error message */}
       {error && (
-        <div className="p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-300">
+        <div className="p-4 bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300">
           Error loading tasks: {error}
         </div>
       )}
@@ -322,7 +322,7 @@ function TaskList() {
       {/* Loading state */}
       {loading && !data && (
         <div className="flex items-center justify-center py-12">
-          <div className="text-gray-400">Loading tasks...</div>
+          <div className="text-gray-500 dark:text-gray-400">Loading tasks...</div>
         </div>
       )}
 
@@ -356,7 +356,7 @@ function TaskList() {
 
       {/* Summary */}
       {data && (
-        <div className="text-sm text-gray-500 text-center pt-4 border-t border-gray-700">
+        <div className="text-sm text-gray-500 text-center pt-4 border-t border-gray-200 dark:border-gray-700">
           Showing {filteredTasks.length} of {data.tasks.length} tasks
         </div>
       )}

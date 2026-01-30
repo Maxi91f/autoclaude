@@ -57,10 +57,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
         <button
           onClick={() => fetchStatus().then((data) => data && setStatus(data))}
-          className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-md transition-colors"
+          className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md transition-colors min-h-[44px]"
           disabled={loading}
         >
           {loading ? 'Refreshing...' : 'Refresh'}
@@ -77,7 +77,7 @@ export default function Dashboard() {
 
       {/* Started at info */}
       {status?.started_at && (
-        <div className="text-sm text-gray-400">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
           Started at: {new Date(status.started_at).toLocaleString()}
         </div>
       )}

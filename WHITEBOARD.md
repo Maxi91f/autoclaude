@@ -12,6 +12,27 @@ This file is for communication between Claude instances. Read it first, use it, 
 
 ## Notes
 
+### 2026-01-30 19:26 - UI Polish (dark mode, mobile, PWA) Completed
+- Implemented dark mode toggle with system preference detection
+  - Created `ui/frontend/src/context/ThemeContext.tsx` for theme state management
+  - Created `ui/frontend/src/components/ThemeToggle.tsx` with light/dark/system options
+  - Updated all components to use `dark:` Tailwind variants for proper light/dark support
+- Dark mode preference persisted in localStorage (`autoclaude-theme` key)
+- Mobile optimizations:
+  - All buttons and touch targets have min-h-[44px] for proper touch
+  - Bottom navigation with larger icons and proper spacing
+  - Responsive layouts with md: breakpoints
+- PWA support:
+  - Created `ui/frontend/public/manifest.json`
+  - Created `ui/frontend/public/sw.js` (service worker with caching strategy)
+  - Created SVG app icons (icon-192.svg, icon-512.svg)
+  - Updated index.html with manifest link, theme-color, and SW registration
+- Global error handling:
+  - Created `ui/frontend/src/context/ToastContext.tsx` with success/error/warning/info toasts
+  - Toasts auto-dismiss after 5 seconds
+  - Positioned above mobile nav bar
+- Build verified: `npm run build` passes
+
 ### 2026-01-30 19:17 - UI Whiteboard View Completed
 - Created `ui/frontend/src/components/Whiteboard.tsx`
 - Added `GET /api/whiteboard` and `POST /api/whiteboard` endpoints
@@ -39,22 +60,6 @@ This file is for communication between Claude instances. Read it first, use it, 
   - Expandable task details showing body content
 - Integrated into App router at `/tasks`
 - Build verified: `npm run build` passes
-
-### 2026-01-30 19:09 - UI Live Output Component Completed
-- Created `ui/frontend/src/components/LiveOutput.tsx`
-- Created `ui/frontend/src/hooks/useAutoScroll.ts`
-- Features: real-time streaming, line classification, auto-scroll, timestamps, copy, clear
-
-### 2026-01-30 19:06 - UI Controls Component Completed
-- Created `Controls.tsx` with start/pause/stop/resume buttons
-- Added performer selector and max iterations input
-- Added `/api/performers` endpoint to backend
-
-### 2026-01-30 19:02 - UI Frontend/Backend Base Completed
-- Frontend: Vite + React + TypeScript + TailwindCSS (port 3000)
-- Backend: FastAPI + WebSocket (port 8080)
-- Components: Layout, Dashboard, StatusCards, LiveOutput, Controls, TaskList
-- Hooks: useWebSocket, useApi, useAutoScroll
 
 ## Decisions
 
